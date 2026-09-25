@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Modal Harian</title>
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --navy:#131b33; --navy-2:#1e2a4a;
+        --green:#16a34a; --green-bg:#e9f9ee;
+        --red:#dc2626; --red-bg:#fdecec;
+        --amber:#d97706; --amber-bg:#fef6e7;
+        --blue:#2563eb; --blue-bg:#eaf0fe;
+        --muted:#6b7280; --border:#e6e9f2; --bg-soft:#f7f8fc;
+    }
+    * { box-sizing: border-box; }
+    body { font-family:'Inter',-apple-system,sans-serif; padding: 28px 16px; background:#eef0f6; color:#1a1f2e; margin:0; -webkit-font-smoothing:antialiased; }
+    .container { position:relative; background: #fff; padding: 30px 32px 36px; border-radius: 20px; box-shadow: 0 1px 3px rgba(20,30,60,.06), 0 12px 32px rgba(20,30,60,.06); max-width: 780px; margin: auto; overflow:hidden; }
+    .container::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg, var(--blue), var(--green), var(--amber)); }
+
+    .page-header { margin-bottom: 20px; display:flex; align-items:flex-start; gap:14px; }
+    .page-header .badge { flex-shrink:0; width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, var(--navy-2), #33437a); display:flex; align-items:center; justify-content:center; font-size:20px; }
+    .page-header h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; letter-spacing:-.01em; }
+    .page-header p { font-size: 13px; color: var(--muted); margin: 0; line-height:1.5; }
+    .back-link { display:inline-block; margin-bottom:14px; color:var(--navy-2); font-weight:600; font-size:13px; text-decoration:none; }
+
+    .data-status { font-size:13px; font-weight:500; padding:11px 14px; border-radius:9px; margin-bottom:16px; }
+    .data-status.ok { background:var(--green-bg); color:#15803d; }
+    .data-status.warn { background:var(--amber-bg); color:#92400e; }
+    .data-status a { color:inherit; font-weight:700; text-decoration:underline; }
+
+    .cutoff-badge { font-size:12.5px; font-weight:600; padding:9px 12px; border-radius:9px; background:var(--bg-soft); margin-bottom:18px; border:1px solid var(--border); }
+
+    button { font-family:'Inter',sans-serif; background-color: var(--navy-2); color: white; border: none; padding: 12px 18px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background .15s ease, transform .1s ease; }
+    button:hover { background-color: #28345a; }
+    button:active { transform: scale(.98); }
+    button.btn-outline { background: #fff; color: var(--navy-2); border: 1.5px solid var(--border); }
+    button.btn-outline:hover { background: var(--bg-soft); }
+    button.btn-danger { background: var(--red); }
+    button.btn-danger:hover { background:#b91c1c; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+
+    .scan-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .scan-controls > * { flex:1; min-width:160px; }
+    input[type="file"] { display:none; }
+    label.file-btn { display:flex; align-items:center; justify-content:center; background:#fff; color:var(--navy-2); border:1.5px solid var(--border); border-radius:9px; padding:12px 18px; font-weight:600; font-size:14px; cursor:pointer; text-align:center; }
+    label.file-btn:hover { background:var(--bg-soft); }
+
+    #videoContainer { display:none; margin-bottom:16px; border-radius:14px; overflow:hidden; border:1.5px solid var(--border); position:relative; background:#000; }
+    #videoPreview { width:100%; display:block; max-height:340px; object-fit:cover; }
+    .scan-frame-hint { position:absolute; inset:0; pointer-events:none; border:3px solid rgba(255,255,255,.5); margin:15%; border-radius:14px; }
+
+    #scanFeedback { display:none; font-size:13.5px; font-weight:600; padding:11px 14px; border-radius:9px; margin-bottom:14px; }
+    #scanFeedback.green { background:var(--green-bg); color:#15803d; display:block; }
+    #scanFeedback.red { background:var(--red-bg); color:#b91c1c; display:block; }
+    #scanFeedback.amber { background:var(--amber-bg); color:#92400e; display:block; }
+
+    .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+    .summary-card { background:#fff; border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:13px; padding:16px 17px; }
+    .summary-card.green { border-left-color:var(--green); }
+    .summary-card .lbl { font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:6px; }
+    .summary-card .val { font-size:22px; font-weight:800; color:var(--navy-2); }
+    .summary-card.green .val { color:var(--green); }
+
+    .section-title { font-size:14px; font-weight:700; margin:20px 0 10px; color:var(--navy-2); display:flex; justify-content:space-between; align-items:center; }
+    .table-wrapper { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th, td { border-bottom:1px solid var(--border); padding:9px 10px; text-align:left; white-space:nowrap; }
+    th { background:var(--bg-soft); color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase; }
+    .empty-note { color:var(--muted); font-size:13px; padding:14px 0; text-align:center; }
+
+    @media (max-width: 560px) {
+        body { padding:14px 8px; }
+        .container { padding:22px 16px 26px; border-radius:16px; }
+        .summary-grid { grid-template-columns: 1fr 1fr; }
+        .summary-card .val { font-size:18px; }
+    }
+
+    #loginGate { position:fixed; inset:0; background:#eef0f6; display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px; }
+    #loginGate.hidden { display:none; }
+    .login-box { background:#fff; border-radius:18px; padding:32px; max-width:340px; width:100%; box-shadow:0 12px 32px rgba(20,30,60,.12); text-align:center; }
+    .login-box .badge { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, var(--navy-2), #33437a); display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 12px; }
+    .login-box h2 { font-size:17px; margin:0 0 6px; }
+    .login-box p { font-size:12px; color:var(--muted); margin:0 0 16px; }
+    .login-box input { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:9px; font-family:'Inter',sans-serif; font-size:14px; margin-bottom:10px; box-sizing:border-box; }
+    #loginError { color:var(--red); font-size:12px; margin-top:8px; display:none; }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+    <div class="login-box">
+        <div class="badge">🔒</div>
+        <h2>Masuk</h2>
+        <p>Masukkan password yang sama dengan dashboard utama.</p>
+        <input type="password" id="loginPasswordInput" placeholder="Password" onkeydown="if(event.key==='Enter') doLogin()">
+        <button style="width:100%;" onclick="doLogin()">Masuk</button>
+        <div id="loginError"></div>
+    </div>
+</div>
+
+<div class="container">
+    <a href="index.html" class="back-link">← Kembali ke Dashboard</a>
+    <div class="page-header">
+        <div class="badge">🧾</div>
+        <div>
+            <h1>Kalkulator Modal Harian</h1>
+            <p>Scan barcode/QR di resi untuk mencocokkan ke data pesanan, lalu hitung total modal yang harus disetor ke supplier hari ini.</p>
+        </div>
+    </div>
+
+    <div id="dataStatus" class="data-status"></div>
+    <div id="cutoffIndicator" class="cutoff-badge"></div>
+
+    <div class="scan-controls">
+        <button id="btnStartScan" onclick="startCameraScan()">📷 Mulai Scan Kamera</button>
+        <label class="file-btn" for="fResiUpload">📁 Upload Foto/PDF Resi</label>
+        <input type="file" id="fResiUpload" accept="image/*,application/pdf,.pdf" multiple onchange="handleFileUpload(this.files)">
+    </div>
+
+    <div id="videoContainer">
+        <video id="videoPreview"></video>
+        <div class="scan-frame-hint"></div>
+    </div>
+    <div id="stopScanWrap" style="display:none; margin-bottom:16px;">
+        <button class="btn-outline" style="width:100%;" onclick="stopCameraScan()">⏹️ Berhenti Scan</button>
+    </div>
+
+    <div id="scanFeedback"></div>
+
+    <div class="summary-grid">
+        <div class="summary-card green">
+            <div class="lbl">Total Modal Terkumpul</div>
+            <div class="val" id="totalModalVal">Rp 0</div>
+        </div>
+        <div class="summary-card">
+            <div class="lbl">Resi Berhasil Discan</div>
+            <div class="val" id="totalCountVal">0</div>
+        </div>
+    </div>
+
+    <div class="section-title">
+        <span>Daftar Resi Tercocok</span>
+        <button class="btn-outline" style="width:auto; padding:7px 12px; font-size:12px;" onclick="resetSession()">🗑️ Mulai Hari Baru</button>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Waktu</th><th>No. Pesanan</th><th>No. Resi</th><th>Platform</th><th>Modal</th></tr></thead>
+            <tbody id="scannedTableBody"><tr><td colspan="5" class="empty-note">Belum ada resi yang discan.</td></tr></tbody>
+        </table>
+    </div>
+
+    <div class="section-title">
+        <span>⚠️ Tidak Ditemukan di Database</span>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Waktu</th><th>Kode Terbaca</th></tr></thead>
+            <tbody id="unmatchedTableBody"><tr><td colspan="2" class="empty-note">Tidak ada kode yang gagal dicocokkan.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const LS_ORDERS = 'rekapAdvDiqi_ordersV2';
+    const LS_ADSPEND = 'rekapAdvDiqi_adSpendV2';
+    const LS_UNCLASSIFIED = 'rekapAdvDiqi_unclassifiedV1';
+    const LS_SKU_OVERRIDE = 'rekapAdvDiqi_skuOverrideV1';
+    const LS_RETUR_CONFIRM = 'rekapAdvDiqi_returConfirmV1';
+    const SCAN_SESSION_KEY = 'modalKalkulator_scanSession';
+
+    let ordersDB = {};
+    let hppVersions = [];
+    let skuOverrides = {};
+    let cloudApiUrl = '';
+    let sessionToken = '';
+    let scannedList = [];    // { time, noPesanan, resi, platform, hpp }
+    let unmatchedList = [];  // { time, code }
+    let scannedKeys = new Set();
+    let codeReader = null;
+
+    // ============== LOGIN & AMBIL DATA DARI CLOUD (read-only, sama datanya dgn dashboard) ==============
+    function showLoginGate() { document.getElementById('loginGate').classList.remove('hidden'); }
+    function hideLoginGate() { document.getElementById('loginGate').classList.add('hidden'); }
+
+    async function doLogin() {
+        const pwInput = document.getElementById('loginPasswordInput');
+        const errEl = document.getElementById('loginError');
+        errEl.style.display = 'none';
+        cloudApiUrl = localStorage.getItem('cloudApiUrl') || window.location.origin;
+        try {
+            const res = await fetch(cloudApiUrl + '/api/login', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwInput.value })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.token) {
+                errEl.innerText = data.error || 'Login gagal.'; errEl.style.display = 'block'; return;
+            }
+            sessionToken = data.token;
+            localStorage.setItem('sessionToken', sessionToken);
+            localStorage.setItem('cloudApiUrl', cloudApiUrl);
+            hideLoginGate();
+            await loadFromCloudThenInit();
+        } catch (e) {
+            errEl.innerText = 'Nggak bisa hubungi server. Cek koneksi/URL API.'; errEl.style.display = 'block';
+        }
+    }
+
+    async function loadFromCloudThenInit() {
+        try {
+            const res = await fetch(cloudApiUrl + '/api/data', { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+            if (res.status === 401) { sessionToken = ''; localStorage.removeItem('sessionToken'); showLoginGate(); return; }
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem(LS_ORDERS, JSON.stringify(data.orders || {}));
+                localStorage.setItem(LS_ADSPEND, JSON.stringify(data.adSpend || {}));
+                localStorage.setItem(LS_UNCLASSIFIED, JSON.stringify(data.unclassified || {}));
+                localStorage.setItem('hppCacheData', JSON.stringify(data.hppVersions || []));
+                localStorage.setItem(LS_SKU_OVERRIDE, JSON.stringify(data.skuOverrides || {}));
+                localStorage.setItem(LS_RETUR_CONFIRM, JSON.stringify(data.returConfirmations || {}));
+            }
+        } catch (e) {
+            console.error('Gagal ambil data cloud, pakai cache lokal kalau ada:', e);
+        }
+        loadData();
+        loadScanSession();
+        renderResults();
+    }
+
+    async function initAuth() {
+        cloudApiUrl = localStorage.getItem('cloudApiUrl') || window.location.origin;
+        sessionToken = localStorage.getItem('sessionToken') || '';
+        if (!sessionToken) { showLoginGate(); return; }
+        hideLoginGate();
+        await loadFromCloudThenInit();
+    }
+
+    // ============== HELPER (sama persis dengan dashboard, biar hasil hitung konsisten) ==============
+    function cleanID(id) {
+        if (!id) return "";
+        return String(id).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    }
+    function cleanSKU(sku) {
+        if (!sku) return "";
+        return String(sku).trim().toUpperCase();
+    }
+    function fmtRupiah(n) {
+        if (n === null || n === undefined || isNaN(n)) return "Rp 0";
+        let neg = n < 0;
+        let s = "Rp " + Math.round(Math.abs(n)).toLocaleString('id-ID');
+        return neg ? "-" + s : s;
+    }
+    function getHPPAtDate(skuClean, timestamp) {
+        let applicablePrice, applicableFrom = -Infinity;
+        let earliestPrice, earliestFrom = Infinity;
+        hppVersions.forEach(v => {
+            if (v.prices[skuClean] === undefined) return;
+            if (v.effectiveFrom <= timestamp && v.effectiveFrom >= applicableFrom) {
+                applicablePrice = v.prices[skuClean];
+                applicableFrom = v.effectiveFrom;
+            }
+            if (v.effectiveFrom < earliestFrom) {
+                earliestFrom = v.effectiveFrom;
+                earliestPrice = v.prices[skuClean];
+            }
+        });
+        return applicablePrice !== undefined ? applicablePrice : earliestPrice;
+    }
+    function computeOrderHPP(order) {
+        if (order.isCancelled) return 0;
+        let total = 0;
+        (order.items || []).forEach(it => {
+            let effectiveSku = it.sku || skuOverrides[order.noPesanan + '||' + it.namaProduk] || it.sku;
+            let harga = getHPPAtDate(cleanSKU(effectiveSku), order.timestamp);
+            if (harga !== undefined) total += harga * it.jumlah;
+        });
+        return total;
+    }
+
+    // ============== LOAD DATA (dari localStorage, sudah disegarkan dari cloud sebelumnya) ==============
+    function loadData() {
+        try { ordersDB = JSON.parse(localStorage.getItem(LS_ORDERS)) || {}; } catch (e) { ordersDB = {}; }
+        try {
+            let raw = JSON.parse(localStorage.getItem('hppCacheData'));
+            hppVersions = Array.isArray(raw) ? raw : [];
+        } catch (e) { hppVersions = []; }
+        try { skuOverrides = JSON.parse(localStorage.getItem(LS_SKU_OVERRIDE)) || {}; } catch (e) { skuOverrides = {}; }
+
+        const orderCount = Object.keys(ordersDB).length;
+        const statusEl = document.getElementById('dataStatus');
+        if (orderCount === 0) {
+            statusEl.className = 'data-status warn';
+            statusEl.innerHTML = `⚠️ Belum ada data pesanan tersimpan. <a href="index.html">Buka Dashboard</a> dan proses data pesanan + HPP dulu sebelum mulai scan.`;
+        } else {
+            statusEl.className = 'data-status ok';
+            statusEl.innerHTML = `✅ ${orderCount} pesanan & ${hppVersions.length} periode HPP siap dipakai untuk pencocokan resi.`;
+        }
+    }
+
+
+    // ============== INDIKATOR CUTOFF JAM 16:00 ==============
+    function updateCutoffIndicator() {
+        const el = document.getElementById('cutoffIndicator');
+        const now = new Date();
+        const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0, 0);
+        const jamSekarang = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        if (now < cutoff) {
+            let diffMin = Math.round((cutoff - now) / 60000);
+            let jam = Math.floor(diffMin / 60), menit = diffMin % 60;
+            el.innerHTML = `🟢 Sekarang ${jamSekarang} — masih ${jam} jam ${menit} menit lagi menuju batas setoran jam 16:00`;
+            el.style.color = "var(--green)";
+        } else {
+            el.innerHTML = `🔴 Sekarang ${jamSekarang} — sudah lewat jam 16:00, resi yang discan sekarang kemungkinan masuk hitungan setoran besok`;
+            el.style.color = "var(--red)";
+        }
+    }
+
+    // ============== PENCOCOKAN KODE HASIL SCAN KE DATABASE PESANAN ==============
+    function findOrderByCode(cleaned) {
+        // 1) Match langsung ke No. Pesanan (key utama database)
+        if (ordersDB[cleaned]) return ordersDB[cleaned];
+        // 2) Match ke No. Resi (paling umum, karena barcode di label pengiriman biasanya nomor resi ekspedisi)
+        for (let key in ordersDB) {
+            let o = ordersDB[key];
+            if (o.resi && cleanID(o.resi) === cleaned) return o;
+        }
+        // 3) Fuzzy: kode yang kescan mengandung No. Resi/No. Pesanan (barcode kadang ada prefix/suffix tambahan)
+        for (let key in ordersDB) {
+            let o = ordersDB[key];
+            if (o.resi && cleanID(o.resi).length >= 8 && cleaned.includes(cleanID(o.resi))) return o;
+            if (key.length >= 8 && cleaned.includes(key)) return o;
+        }
+        // 4) Fuzzy 12 digit awal (konsisten dengan pencocokan pencairan TikTok di dashboard)
+        if (cleaned.length >= 15) {
+            let prefix = cleaned.substring(0, 12);
+            for (let key in ordersDB) {
+                if (key.length >= 15 && key.startsWith(prefix)) return ordersDB[key];
+            }
+        }
+        return null;
+    }
+
+    function recordMatch(matched, allCleanedCodes) {
+        allCleanedCodes.forEach(c => scannedKeys.add(c)); // tandai SEMUA kode di label ini biar gak dobel discan
+        let hpp = computeOrderHPP(matched);
+        scannedList.unshift({ time: Date.now(), code: allCleanedCodes[0], noPesanan: matched.noPesanan, resi: matched.resi || '-', platform: matched.platform, hpp: hpp });
+        showFeedback(`✅ Cocok dengan pesanan ${matched.noPesanan} — Modal: ${fmtRupiah(hpp)}`, 'green');
+        saveScanSession();
+        renderResults();
+    }
+
+    function recordUnmatched(rawCodesJoined) {
+        unmatchedList.unshift({ time: Date.now(), code: rawCodesJoined });
+        showFeedback(`❌ Kode "${rawCodesJoined}" tidak ditemukan di database pesanan.`, 'red');
+        saveScanSession();
+        renderResults();
+    }
+
+    // Dipakai untuk scan KAMERA (1 kode per frame video)
+    function handleScanResult(rawText) {
+        let cleaned = cleanID(rawText);
+        if (!cleaned) return;
+        if (scannedKeys.has(cleaned)) {
+            showFeedback(`⚠️ Kode ini sudah pernah discan sebelumnya — dilewati.`, 'amber');
+            return;
+        }
+        let matched = findOrderByCode(cleaned);
+        if (matched) recordMatch(matched, [cleaned]);
+        else recordUnmatched(rawText);
+    }
+
+    // Dipakai untuk upload FOTO/PDF — 1 lembar resi bisa punya beberapa kode sekaligus
+    // (barcode No. Resi, barcode No. Pesanan, QR code, dll). Coba SEMUA kode yang berhasil
+    // terbaca, pakai yang PERTAMA cocok ke database — nggak masalah kode yang mana asal salah satu match.
+    function handleMultipleScanResults(rawTexts) {
+        let uniqueCleaned = [...new Set(rawTexts.map(cleanID).filter(Boolean))];
+        if (uniqueCleaned.length === 0) return;
+        if (uniqueCleaned.some(c => scannedKeys.has(c))) {
+            showFeedback(`⚠️ Resi ini sudah pernah discan sebelumnya — dilewati.`, 'amber');
+            return;
+        }
+        for (let cleaned of uniqueCleaned) {
+            let matched = findOrderByCode(cleaned);
+            if (matched) { recordMatch(matched, uniqueCleaned); return; }
+        }
+        recordUnmatched(rawTexts.join(' / '));
+    }
+
+    function showFeedback(msg, cls) {
+        const el = document.getElementById('scanFeedback');
+        el.className = cls;
+        el.innerText = msg;
+        clearTimeout(window._feedbackTimeout);
+        window._feedbackTimeout = setTimeout(() => { el.className = ''; el.innerText = ''; }, 5000);
+    }
+
+    // Coba baca QR code dan barcode 1D secara TERPISAH dari gambar yang sama — soalnya 1 label resi
+    // sering punya lebih dari 1 kode (barcode + QR, atau 2 barcode sekaligus), dan sekali decode
+    // biasanya cuma nemu 1 simbol pertama yang ketemu. Dengan misahin per grup format, kemungkinan
+    // dapat lebih dari 1 kode jadi lebih besar.
+    // Coba baca kode dari sebuah CANVAS pakai 2 library berbeda algoritma (jsQR + ZXing) —
+    // beberapa QR/barcode kebaca sama satu library tapi nggak sama yang lain, jadi makin banyak
+    // "percobaan" makin besar peluang salah satunya berhasil. Akurasi diprioritaskan di atas kecepatan.
+    async function decodeAllFormatsFromCanvas(canvas) {
+        let found = [];
+
+        // 1) jsQR — khusus QR code, baca langsung dari pixel data (seringkali lebih toleran
+        //    terhadap kualitas cetak/render dibanding ZXing untuk kasus tertentu)
+        try {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            if (window.jsQR) {
+                const jsQrResult = jsQR(imageData.data, imageData.width, imageData.height);
+                if (jsQrResult && jsQrResult.data) found.push(jsQrResult.data);
+            }
+        } catch (e) {
+            // Gambar terlalu besar / gagal diproses jsQR — lanjut ke ZXing
+        }
+
+        // 2) ZXing — coba format QR & barcode 1D secara terpisah
+        const dataUrl = canvas.toDataURL('image/png');
+        const formatGroups = [
+            [ZXing.BarcodeFormat.QR_CODE],
+            [ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.UPC_A]
+        ];
+        for (const formats of formatGroups) {
+            let reader;
+            try {
+                const hints = new Map();
+                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+                hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                reader = new ZXing.BrowserMultiFormatReader(hints);
+                const result = await reader.decodeFromImageUrl(dataUrl);
+                found.push(result.getText());
+            } catch (e) {
+                // Grup format ini nggak ketemu simbolnya di gambar — lanjut ke grup berikutnya
+            } finally {
+                if (reader) reader.reset();
+            }
+        }
+        return found;
+    }
+
+    // Dipakai untuk upload foto (bukan PDF) — gambar dimuat ke canvas dulu biar bisa dipakai jsQR juga
+    function loadImageFileToCanvas(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                resolve(canvas);
+            };
+            img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+            img.src = url;
+        });
+    }
+
+    // ============== SCAN VIA KAMERA (ZXing) ==============
+    async function startCameraScan() {
+        try {
+            codeReader = codeReader || new ZXing.BrowserMultiFormatReader();
+            const devices = await codeReader.listVideoInputDevices();
+            if (devices.length === 0) { alert("Tidak ada kamera terdeteksi di perangkat ini."); return; }
+            let device = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+
+            document.getElementById('videoContainer').style.display = 'block';
+            document.getElementById('stopScanWrap').style.display = 'block';
+            document.getElementById('btnStartScan').disabled = true;
+
+            codeReader.decodeFromVideoDevice(device.deviceId, 'videoPreview', (result, err) => {
+                if (result) handleScanResult(result.getText());
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Tidak bisa mengakses kamera. Pastikan izin kamera diaktifkan di browser, atau gunakan tombol 'Upload Foto Resi' sebagai alternatif.");
+            stopCameraScan();
+        }
+    }
+
+    function stopCameraScan() {
+        if (codeReader) codeReader.reset();
+        document.getElementById('videoContainer').style.display = 'none';
+        document.getElementById('stopScanWrap').style.display = 'none';
+        document.getElementById('btnStartScan').disabled = false;
+    }
+
+    // ============== SCAN VIA UPLOAD FOTO / PDF ==============
+    async function scanPdfFile(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let foundCount = 0;
+        let emptyPages = [];
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            showFeedback(`⏳ Memindai halaman ${pageNum} dari ${pdf.numPages} — "${file.name}"...`, 'amber');
+            // Setiap halaman diproses terisolasi — kalau 1 halaman gagal (misal karena beban render),
+            // batch TIDAK berhenti total, cuma halaman itu yang dilewati.
+            try {
+                const page = await pdf.getPage(pageNum);
+                // Resolusi dinaikkan lagi — memori ternyata bukan hambatan utama, akurasi lebih diprioritaskan.
+                const viewport = page.getViewport({ scale: 3.0 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                const codes = await decodeAllFormatsFromCanvas(canvas);
+                if (codes.length > 0) {
+                    handleMultipleScanResults(codes);
+                    foundCount++;
+                } else {
+                    emptyPages.push(pageNum);
+                    unmatchedList.unshift({ time: Date.now(), code: `Halaman ${pageNum} dari "${file.name}" — tidak ada kode terbaca` });
+                    saveScanSession();
+                    renderResults();
+                }
+                // Lepas memori canvas sebelum lanjut ke halaman berikutnya
+                canvas.width = 0;
+                canvas.height = 0;
+            } catch (e) {
+                console.error(`Gagal memproses halaman ${pageNum} dari "${file.name}":`, e);
+                showFeedback(`⚠️ Halaman ${pageNum} gagal diproses — dilewati, lanjut ke halaman berikutnya.`, 'amber');
+                emptyPages.push(pageNum);
+                unmatchedList.unshift({ time: Date.now(), code: `Halaman ${pageNum} dari "${file.name}" — gagal diproses (error render/decode)` });
+                saveScanSession();
+                renderResults();
+            }
+            // Kasih jeda sebentar biar browser sempat "napas" (garbage collect) sebelum render halaman
+            // berikutnya — mitigasi buat browser HP yang memori canvas-nya terbatas (terutama Safari iOS).
+            await new Promise(r => setTimeout(r, 60));
+        }
+        if (emptyPages.length > 0) {
+            console.warn(`Halaman tanpa kode terbaca di "${file.name}": ${emptyPages.join(', ')}`);
+        }
+        return { found: foundCount, total: pdf.numPages, emptyPages: emptyPages };
+    }
+
+    async function handleFileUpload(files) {
+        if (!files || files.length === 0) return;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+            if (isPdf) {
+                try {
+                    let { found, total, emptyPages } = await scanPdfFile(file);
+                    if (found === 0) {
+                        showFeedback(`❌ Tidak ada barcode/QR yang terbaca dari PDF "${file.name}" (0 dari ${total} halaman).`, 'red');
+                    } else if (found < total) {
+                        showFeedback(`⚠️ "${file.name}": ${found} dari ${total} halaman berhasil terbaca. Halaman gagal: ${emptyPages.join(', ')} — coba upload ulang file ini sendiri (terpisah dari file lain) untuk halaman yang gagal.`, 'amber');
+                    } else {
+                        showFeedback(`✅ Selesai memindai "${file.name}": semua ${total} halaman berhasil terbaca.`, 'green');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showFeedback(`❌ Gagal membuka PDF "${file.name}". Pastikan file tidak rusak/terkunci password.`, 'red');
+                }
+            } else {
+                try {
+                    const canvas = await loadImageFileToCanvas(file);
+                    const codes = await decodeAllFormatsFromCanvas(canvas);
+                    if (codes.length > 0) handleMultipleScanResults(codes);
+                    else showFeedback(`❌ Gagal membaca barcode/QR dari foto "${file.name}". Coba foto ulang lebih jelas/fokus.`, 'red');
+                } catch (e) {
+                    showFeedback(`❌ Gagal membaca barcode/QR dari foto "${file.name}".`, 'red');
+                }
+            }
+        }
+        document.getElementById('fResiUpload').value = "";
+    }
+
+    // ============== RENDER HASIL ==============
+    function renderResults() {
+        const totalModal = scannedList.reduce((a, s) => a + s.hpp, 0);
+        document.getElementById('totalModalVal').innerText = fmtRupiah(totalModal);
+        document.getElementById('totalCountVal').innerText = scannedList.length;
+
+        const body = document.getElementById('scannedTableBody');
+        if (scannedList.length === 0) {
+            body.innerHTML = `<tr><td colspan="5" class="empty-note">Belum ada resi yang discan.</td></tr>`;
+        } else {
+            body.innerHTML = scannedList.map(s => {
+                let jam = new Date(s.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                return `<tr><td>${jam}</td><td>${s.noPesanan}</td><td>${s.resi}</td><td>${s.platform}</td><td>${fmtRupiah(s.hpp)}</td></tr>`;
+            }).join('');
+        }
+
+        const ubody = document.getElementById('unmatchedTableBody');
+        if (unmatchedList.length === 0) {
+            ubody.innerHTML = `<tr><td colspan="2" class="empty-note">Tidak ada kode yang gagal dicocokkan.</td></tr>`;
+        } else {
+            ubody.innerHTML = unmatchedList.map(u => {
+                let jam = new Date(u.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                return `<tr><td>${jam}</td><td>${u.code}</td></tr>`;
+            }).join('');
+        }
+    }
+
+    function resetSession() {
+        if (!confirm("Mulai hari baru? Semua data scan hari ini akan dihapus (data pesanan & HPP di dashboard tidak ikut terhapus).")) return;
+        scannedList = [];
+        unmatchedList = [];
+        scannedKeys = new Set();
+        saveScanSession();
+        renderResults();
+    }
+
+    // ============== SESI SCAN TERSIMPAN (biar refresh halaman nggak hilang, auto-reset tiap hari baru) ==============
+    function todayStr() {
+        let d = new Date();
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }
+    function loadScanSession() {
+        try {
+            let saved = JSON.parse(localStorage.getItem(SCAN_SESSION_KEY));
+            if (saved && saved.dateStr === todayStr()) {
+                scannedList = saved.scannedList || [];
+                unmatchedList = saved.unmatchedList || [];
+                scannedKeys = new Set(scannedList.map(s => s.code || cleanID(s.resi !== '-' ? s.resi : s.noPesanan)));
+            }
+        } catch (e) { /* abaikan */ }
+    }
+    function saveScanSession() {
+        localStorage.setItem(SCAN_SESSION_KEY, JSON.stringify({ dateStr: todayStr(), scannedList, unmatchedList }));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        initAuth(); // loadData() + loadScanSession() + renderResults() dipanggil di dalam initAuth setelah data cloud siap
+        updateCutoffIndicator();
+        setInterval(updateCutoffIndicator, 30000);
+    });
+</script>
+</body>
+</html>

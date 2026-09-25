@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Penjualan & Analitik Toko</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy:#131b33; --navy-2:#1e2a4a;
+            --green:#16a34a; --green-bg:#e9f9ee;
+            --red:#dc2626; --red-bg:#fdecec;
+            --amber:#d97706; --amber-bg:#fef6e7;
+            --blue:#2563eb; --blue-bg:#eaf0fe;
+            --shopee:#ee4d2d; --tiktok2:#0891a8;
+            --muted:#6b7280; --border:#e6e9f2; --bg-soft:#f7f8fc;
+        }
+        * { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family:'Inter',-apple-system,sans-serif; padding: 28px 16px; background:#eef0f6; color:#1a1f2e; margin:0; -webkit-font-smoothing:antialiased; }
+        .container { position:relative; background: #fff; padding: 34px 36px 40px; border-radius: 20px; box-shadow: 0 1px 3px rgba(20,30,60,.06), 0 12px 32px rgba(20,30,60,.06); max-width: 1180px; margin: auto; overflow:hidden; }
+        .container::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg, var(--blue), var(--green), var(--amber)); }
+
+        .page-header { margin-bottom: 24px; display:flex; align-items:flex-start; gap:14px; }
+        .page-header .badge { flex-shrink:0; width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg, var(--navy-2), #33437a); display:flex; align-items:center; justify-content:center; font-size:20px; }
+        .page-header h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; letter-spacing:-.01em; }
+        .page-header p { font-size: 13.5px; color: var(--muted); margin: 0; line-height:1.5; }
+
+        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 14px; color: #1a1f2e; }
+        input[type="file"] { width: 100%; font-size: 12.5px; margin-bottom: 4px; color: var(--muted); }
+        .note { font-size: 11.5px; color: var(--muted); display: block; line-height:1.4; }
+
+        button { font-family:'Inter',sans-serif; background-color: var(--navy-2); color: white; border: none; padding: 11px 18px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background .15s ease, transform .1s ease; }
+        button:hover { background-color: #28345a; }
+        button:active { transform: scale(.98); }
+        button.btn-block { width: 100%; margin-top: 6px; }
+        button.btn-outline { background: #fff; color: var(--navy-2); border: 1.5px solid var(--border); }
+        button.btn-outline:hover { background: var(--bg-soft); }
+        button.btn-success { background-color: var(--green); }
+        button.btn-success:hover { background-color: #128a3e; }
+        button.btn-ghost { background: var(--bg-soft); color: var(--navy-2); padding: 8px 12px; font-size: 13px; }
+        button.btn-ghost:hover { background: var(--border); }
+
+        select { font-family:'Inter',sans-serif; }
+
+        .grid-upload { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+        .box { border: 1.5px solid var(--border); padding: 16px; border-radius: 12px; background: var(--bg-soft); transition: border-color .15s ease; }
+        .box.accent { background: var(--blue-bg); border-color: #c7d7fb; }
+
+        #statusMsg { font-size: 13.5px; font-weight: 500; margin-top: 14px; padding: 11px 14px; border-radius: 9px; display: none; }
+        #statusMsg.info { background: var(--blue-bg); color: #1d4ed8; display:block; }
+        #statusMsg.success { background: var(--green-bg); color: #15803d; display:block; }
+        #statusMsg.error { background: var(--red-bg); color: #b91c1c; display:block; }
+
+        details { margin-top: 18px; border: 1.5px solid var(--border); border-radius: 14px; padding: 0; overflow: hidden; }
+        details summary { cursor:pointer; font-weight:600; font-size: 14.5px; padding: 15px 18px; list-style: none; display:flex; align-items:center; justify-content:space-between; background: var(--bg-soft); user-select:none; }
+        details summary::-webkit-details-marker { display:none; }
+        details summary::after { content:'▾'; font-size:12px; color: var(--muted); transition: transform .15s ease; }
+        details[open] summary::after { transform: rotate(180deg); }
+        details .details-body { padding: 18px; }
+        summary .summary-info { font-weight:400; font-size:12.5px; color:var(--muted); margin-left:10px; }
+
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border-bottom: 1px solid var(--border); padding: 9px 10px; text-align: left; white-space: nowrap; }
+        th { background-color: var(--bg-soft); color: var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.02em; }
+
+        /* ===== Dashboard ===== */
+        #dashArea { display:none; margin-top: 24px; }
+        .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px; flex-wrap: wrap; gap:10px; }
+
+        .period-bar { display:flex; align-items:center; gap:8px; background: var(--bg-soft); border:1px solid var(--border); border-radius: 11px; padding: 6px 8px; }
+        .period-bar select { border:none; background:transparent; font-weight:600; font-size:13.5px; color:var(--navy-2); padding:6px 4px; cursor:pointer; }
+        .period-bar button.nav-btn { width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid var(--border); color:var(--navy-2); font-size:14px; border-radius:8px; flex-shrink:0; }
+        .period-bar button.nav-btn:hover { background:var(--border); }
+        .period-label { font-size:13.5px; font-weight:700; color:var(--navy-2); min-width:110px; text-align:center; }
+
+        .section-title { font-size: 14.5px; font-weight: 700; margin: 22px 0 12px; color: var(--navy-2); }
+        .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+        #orderStats { grid-template-columns: repeat(5,1fr); }
+        #financeStats { grid-template-columns: repeat(3,1fr); }
+        .stat-card { background:#fff; border-radius:13px; padding:16px 17px; border:1px solid var(--border); border-left:4px solid var(--blue); transition: transform .15s ease, box-shadow .15s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(20,30,60,.08); }
+        .stat-card .lbl { font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:7px; }
+        .stat-card .val { font-size:19px; font-weight:800; letter-spacing:-.01em; }
+        .stat-card .sub { font-size:11px; color:var(--muted); margin-top:5px; }
+        .stat-card.green { border-left-color:var(--green); } .stat-card.green .val{ color:var(--green); }
+        .stat-card.red { border-left-color:var(--red); } .stat-card.red .val{ color:var(--red); }
+        .stat-card.amber { border-left-color:var(--amber); } .stat-card.amber .val{ color:var(--amber); }
+        .stat-card.navy { border-left-color:var(--navy-2); } .stat-card.navy .val{ color:var(--navy-2); }
+        .stat-card.blue { border-left-color:var(--blue); } .stat-card.blue .val{ color:var(--blue); }
+
+        .two-col { display:grid; grid-template-columns:1.1fr .9fr; gap:14px; margin-top: 6px; }
+        .panel { background:#fff; border-radius:13px; padding:18px 20px; border:1px solid var(--border); }
+        .bar-row { margin-bottom:12px; }
+        .bar-row:last-child { margin-bottom:0; }
+        .bar-row .top { display:flex; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:5px; }
+        .bar-track { background:var(--bg-soft); border-radius:6px; height:9px; overflow:hidden; }
+        .bar-fill { height:100%; border-radius:6px; transition: width .3s ease; }
+        table.dash-table { width:100%; border-collapse:collapse; font-size:13px; }
+        table.dash-table th, table.dash-table td { padding:9px 10px; text-align:left; border-bottom:1px solid var(--border); white-space:normal; background:none; color:inherit; }
+        table.dash-table th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; }
+        .plat-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+        .empty-note { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+        /* ===== Grafik Tren Penjualan ===== */
+        .chart-select { border:1.5px solid var(--border); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--navy-2); background:#fff; cursor:pointer; }
+        #salesChartContainer svg text { font-family:'Inter',sans-serif; }
+        #salesChartContainer { margin-top: 4px; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 780px) {
+            body { padding: 14px 8px; }
+            .container { padding: 22px 18px 28px; border-radius: 16px; }
+            .page-header h1 { font-size: 19px; }
+            .page-header .badge { width:38px; height:38px; font-size:17px; border-radius:10px; }
+            .grid-upload { grid-template-columns: 1fr; }
+            .two-col { grid-template-columns: 1fr; }
+            #orderStats, #financeStats, .stat-grid { grid-template-columns: repeat(2,1fr); }
+            .stat-card .val { font-size:17px; }
+            .period-label { min-width:96px; font-size:12.5px; }
+            .dash-header { gap:12px; }
+        }
+        @media (max-width: 460px) {
+            #orderStats, #financeStats, .stat-grid { grid-template-columns: 1fr 1fr; }
+            .page-header { gap:10px; }
+            th, td { font-size:11px; padding:7px 8px; }
+        }
+
+        /* ===== Login Gate & Cloud Sync ===== */
+        #loginGate { position:fixed; inset:0; background:#eef0f6; display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px; }
+        #loginGate.hidden { display:none; }
+        .login-box { background:#fff; border-radius:18px; padding:32px; max-width:360px; width:100%; box-shadow:0 12px 32px rgba(20,30,60,.12); text-align:center; }
+        .login-box .badge { width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, var(--navy-2), #33437a); display:flex; align-items:center; justify-content:center; font-size:22px; margin:0 auto 14px; }
+        .login-box h2 { font-size:18px; margin:0 0 6px; }
+        .login-box p { font-size:12.5px; color:var(--muted); margin:0 0 18px; }
+        .login-box input { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:9px; font-family:'Inter',sans-serif; font-size:14px; margin-bottom:10px; box-sizing:border-box; }
+        .login-box .setup-url { font-size:11px; color:var(--muted); margin-top:14px; text-align:left; background:var(--bg-soft); padding:10px 12px; border-radius:8px; }
+        #loginError { color:var(--red); font-size:12.5px; margin-top:8px; display:none; }
+
+        .sync-badge { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:20px; white-space:nowrap; }
+        .sync-badge.ok { background:var(--green-bg); color:#15803d; }
+        .sync-badge.syncing { background:var(--blue-bg); color:#1d4ed8; }
+        .sync-badge.error { background:var(--red-bg); color:#b91c1c; }
+    </style>
+</head>
+<body>
+
+<div id="loginGate">
+    <div class="login-box">
+        <div class="badge">🔒</div>
+        <h2>Masuk ke Dashboard</h2>
+        <p>Data tersimpan di cloud — masukkan password untuk mengakses.</p>
+        <input type="password" id="loginPasswordInput" placeholder="Password" onkeydown="if(event.key==='Enter') doLogin()">
+        <button class="btn-block" onclick="doLogin()">Masuk</button>
+        <div id="loginError"></div>
+        <div class="setup-url">
+            <b>Belum setup?</b> Buka Console browser (F12) dan jalankan:<br>
+            <code>localStorage.setItem('cloudApiUrl','https://xxx.pages.dev')</code><br>
+            lalu refresh. (Biasanya sama dengan URL dashboard ini kalau di-deploy 1 project bareng.)
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="page-header">
+        <div class="badge">📊</div>
+        <div style="flex:1;">
+            <h1>Dashboard Penjualan & Analitik Toko</h1>
+            <p>Upload file pesanan & pencairan Shopee + TikTok. Data tersimpan di cloud — bisa diakses dari device manapun.</p>
+        </div>
+        <div><span class="sync-badge ok" id="syncBadge">☁️ Tersinkron</span></div>
+    </div>
+
+    <details id="uploadDetails" open>
+        <summary>📁 Upload Data <span class="summary-info" id="uploadSummaryInfo"></span></summary>
+        <div class="details-body">
+            <div class="grid-upload">
+                <div class="box">
+                    <label>📁 File Pesanan (Order)</label>
+                    <input type="file" id="fPesanan" accept=".xlsx, .xls, .csv" multiple>
+                    <span class="note">Upload file pesanan Shopee & TikTok</span>
+                    <input type="text" id="namaTokoInput" placeholder="Nama toko (opsional, misal: Toko A)" style="width:100%; margin-top:8px; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13px;">
+                    <span class="note">Kalau kamu jual di lebih dari 1 toko, kasih label di sini biar bisa difilter per-toko nanti. Kosongkan kalau cuma punya 1 toko.</span>
+                </div>
+                <div class="box">
+                    <label>💰 File Pencairan (Saldo/Income)</label>
+                    <input type="file" id="fSaldo" accept=".xlsx, .xls, .csv" multiple>
+                    <span class="note">Upload file pencairan Shopee & TikTok (biaya iklan otomatis kebaca dari sini juga)</span>
+                </div>
+            </div>
+
+            <button class="btn-block" onclick="prosesData()">Proses & Gabungkan ke Dashboard</button>
+            <button class="btn-outline btn-block" onclick="resetAllData()" style="margin-top:8px; font-size:12.5px; padding:8px;">🗑️ Hapus Semua Data Tersimpan</button>
+            <div id="statusMsg"></div>
+        </div>
+    </details>
+
+    <div id="dashArea">
+        <div class="dash-header">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <div class="period-bar">
+                    <select id="periodGranularity" onchange="onGranularityChange()">
+                        <option value="day">Harian</option>
+                        <option value="week">Mingguan</option>
+                        <option value="month" selected>Bulanan</option>
+                        <option value="quarter">Kuartal</option>
+                        <option value="year">Tahunan</option>
+                    </select>
+                    <button type="button" class="nav-btn" onclick="shiftPeriod(-1)">‹</button>
+                    <div class="period-label" id="periodLabel">-</div>
+                    <button type="button" class="nav-btn" onclick="shiftPeriod(1)">›</button>
+                </div>
+                <div class="period-bar">
+                    <select id="platformFilterSelect" onchange="onPlatformFilterChange()">
+                        <option value="all" selected>🌐 Semua Platform</option>
+                        <option value="Shopee">🟠 Shopee</option>
+                        <option value="Tiktok">⚫ TikTok</option>
+                    </select>
+                </div>
+                <div class="period-bar">
+                    <select id="tokoFilterSelect" onchange="onTokoFilterChange()">
+                        <option value="all" selected>🏬 Semua Toko</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-success" onclick="downloadExcel()">⬇️ Download Rekap</button>
+        </div>
+
+        <div class="section-title" style="margin-top:6px;">Ringkasan Pesanan</div>
+        <div class="stat-grid" id="orderStats"></div>
+
+        <div class="section-title">Ringkasan Keuangan</div>
+        <div class="stat-grid" id="financeStats"></div>
+
+        <div class="panel" style="margin-top:14px;">
+            <div class="dash-header" style="margin-bottom:6px;">
+                <div class="section-title" style="margin:0;">Tren Penjualan</div>
+                <select class="chart-select" id="chartMetricSelect" onchange="onChartMetricChange()">
+                    <option value="omset">Pencairan</option>
+                    <option value="gmv">Omzet / GMV</option>
+                    <option value="laba">Laba Bersih</option>
+                    <option value="jumlah">Jumlah Pesanan</option>
+                </select>
+            </div>
+            <div id="salesChartContainer"></div>
+        </div>
+
+        <div class="two-col">
+            <div class="panel">
+                <div class="section-title" style="margin-top:0;">Breakdown Status Pesanan</div>
+                <div id="statusBars"></div>
+            </div>
+            <div class="panel">
+                <div class="section-title" style="margin-top:0;">Per Platform</div>
+                <table class="dash-table" id="platformTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <details id="noSkuDetails">
+        <summary>⚠️ Pesanan Tanpa SKU <span class="summary-info" id="noSkuSummaryInfo"></span></summary>
+        <div class="details-body">
+            <p class="note" style="margin-bottom:12px;">Item di bawah ini belum punya SKU di file pesanan aslinya, jadi HPP-nya tidak bisa dihitung otomatis (Laba Bersih order terkait juga jadi "belum diketahui"). Order-nya tetap tercatat normal — cuma modalnya belum kehitung.</p>
+            <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                <button type="button" class="btn-outline" onclick="downloadNoSkuList()">📥 Download Daftar (untuk diisi SKU)</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="noSkuTable">
+                    <thead><tr><th>No. Pesanan</th><th>Nama Produk</th><th>Jumlah</th><th>Platform</th><th>Tanggal</th><th>Status</th></tr></thead>
+                    <tbody id="noSkuTableBody"></tbody>
+                </table>
+            </div>
+            <div class="box" style="margin-top:16px;">
+                <label style="font-size:13.5px;">Upload kembali file yang sudah diisi kolom SKU-nya</label>
+                <span class="note" style="margin-bottom:8px;">Buka file yang barusan didownload, isi kolom "SKU" untuk baris yang relevan (baris yang dibiarkan kosong akan diabaikan), lalu upload lagi di sini. Sistem akan mencocokkan berdasarkan No. Pesanan + Nama Produk.</span>
+                <input type="file" id="fSkuOverride" accept=".xlsx, .xls, .csv">
+                <button type="button" onclick="prosesSkuOverride()" style="margin-top:8px;">💾 Simpan SKU yang Diisi</button>
+            </div>
+        </div>
+    </details>
+
+    <details id="returDetails">
+        <summary>📦 Pesanan Retur <span class="summary-info" id="returSummaryInfo"></span></summary>
+        <div class="details-body">
+            <p class="note" style="margin-bottom:12px;">Daftar pesanan berstatus Retur/Pengembalian & gagal kirim, diurutkan dari yang terbaru. Meski gagal terkirim, modal (HPP) sudah terlanjur keluar — centang cuma kalau paketnya <b>benar-benar sudah kamu terima fisik di gudang</b>, jangan cuma percaya status "retur selesai" dari sistem kurir (kadang statusnya sudah selesai tapi barangnya nggak pernah sampai). Yang belum dicentang = modal masih "berisiko" dan perlu ditelusuri manual ke kurir/ekspedisi.</p>
+            <input type="text" id="returSearchInput" placeholder="🔍 Cari No. Pesanan atau No. Resi..." oninput="renderReturList()" style="width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:9px; font-family:'Inter',sans-serif; font-size:13.5px; margin-bottom:14px;">
+            <div class="table-wrapper">
+                <table id="returTable">
+                    <thead><tr><th>No. Pesanan</th><th>No. Resi</th><th>Tanggal</th><th>Platform</th><th>Modal (HPP)</th><th>Sampai Gudang</th></tr></thead>
+                    <tbody id="returTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details id="anomaliStatusDetails">
+        <summary>🔍 Pesanan Tanpa Status / Anomali <span class="summary-info" id="anomaliStatusSummaryInfo"></span></summary>
+        <div class="details-body">
+            <p class="note" style="margin-bottom:12px;">Pesanan di bawah ini tidak masuk kategori status manapun (bukan Selesai, Dibatalkan, Diproses, atau Retur) — kemungkinan data status-nya kosong/rusak dari file aslinya. Perlu ditelusuri manual ke Shopee/TikTok Seller Center.</p>
+            <div class="table-wrapper">
+                <table id="anomaliStatusTable">
+                    <thead><tr><th>No. Pesanan</th><th>Platform</th><th>Tanggal</th><th>Omset</th></tr></thead>
+                    <tbody id="anomaliStatusTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details id="anomaliTransDetails">
+        <summary>🔍 Transaksi Pencairan Tidak Terklasifikasi <span class="summary-info" id="anomaliTransSummaryInfo"></span></summary>
+        <div class="details-body">
+            <p class="note" style="margin-bottom:12px;">Baris transaksi di file pencairan yang bukan pembayaran order dan bukan biaya iklan yang dikenali sistem — bisa jadi refund, penalti, atau biaya lain. Tidak masuk ke perhitungan manapun di dashboard; cek manual untuk memastikan tidak ada yang perlu dikoreksi.</p>
+            <div class="table-wrapper">
+                <table id="anomaliTransTable">
+                    <thead><tr><th>Tanggal</th><th>Deskripsi</th><th>Jumlah</th></tr></thead>
+                    <tbody id="anomaliTransTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details>
+        <summary>📄 Lihat Detail Data Per SKU & Download Excel</summary>
+        <div class="details-body">
+            <button class="btn-success btn-block" id="btnDownload" onclick="downloadExcel()" style="margin-bottom:14px;">Download Rekap</button>
+            <div class="table-wrapper">
+                <table id="previewTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details id="hppDetails">
+        <summary>🧮 Data HPP (Harga Pokok / Modal) <span class="summary-info" id="hppSummaryInfo"></span></summary>
+        <div class="details-body">
+            <span class="note" style="margin-bottom:10px; display:block;">Upload file dengan kolom <b>SKU</b> dan <b>Harga Modal</b>, lalu kasih nama & tanggal mulai berlaku periode ini. Kalau harga modal berubah lagi nanti, tinggal upload periode baru — periode lama tetap tersimpan, jadi laba pesanan lama tidak ikut berubah.</span>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                <div>
+                    <label style="font-size:12.5px; margin-bottom:4px;">Nama Periode</label>
+                    <input type="text" id="hppVersionLabel" placeholder="misal: Juli - seterusnya" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px;">
+                </div>
+                <div>
+                    <label style="font-size:12.5px; margin-bottom:4px;">Berlaku Mulai</label>
+                    <input type="date" id="hppVersionDate" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px;">
+                </div>
+            </div>
+            <input type="file" id="fHPP" accept=".xlsx, .xls, .csv" multiple>
+            <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                <button type="button" onclick="prosesHPP()">💾 Simpan Periode HPP</button>
+                <button type="button" class="btn-outline" onclick="downloadTemplateHPP()">📥 Download Template</button>
+                <button type="button" class="btn-outline" onclick="toggleHPPHistoryView()">👁️ Lihat Periode HPP</button>
+            </div>
+            <div id="hppStatus" style="margin-top:12px; font-size:12.5px;"></div>
+            <div id="hppHistoryView" style="display:none; margin-top:14px;">
+                <div class="table-wrapper">
+                    <table id="hppHistoryTable">
+                        <thead><tr><th>Nama Periode</th><th>Berlaku Mulai</th><th>Jumlah SKU</th><th>Aksi</th></tr></thead>
+                        <tbody id="hppHistoryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <div style="text-align:center; margin-top:22px; padding-top:16px; border-top:1px solid var(--border);">
+        <a href="modal-kalkulator.html" style="color:var(--navy-2); font-weight:600; font-size:13.5px; text-decoration:none;">🧾 Buka Kalkulator Modal Harian (Scan Resi) →</a>
+    </div>
+</div>
+
+<script>
+    let finalData = [];
+    let cloudApiUrl = '';
+    let sessionToken = '';
+    let dashboardData = null;
+    let allOrders = [];          // order-level data (untuk filter periode)
+    let allAdSpendEntries = [];  // transaksi biaya iklan bertanggal (untuk filter periode)
+    let itemsTanpaSKU = [];      // item pesanan yang SKU-nya kosong (transparansi)
+    let ordersTanpaStatus = [];  // pesanan yang status-nya kosong/tidak terklasifikasi (anomali)
+    let returList = [];          // pesanan berstatus Retur/Pengembalian
+    let returConfirmations = {}; // { noPesanan: true } — checklist "sudah sampai gudang"
+    let allUnclassifiedEntries = []; // transaksi pencairan yang bukan order & bukan biaya iklan (anomali)
+    let skuOverrides = {};       // koreksi manual: "noPesanan||namaProduk" -> SKU
+    let periodState = { granularity: 'month', refDate: null };
+    let platformFilter = 'all'; // 'all' | 'Shopee' | 'Tiktok'
+    let tokoFilter = 'all'; // 'all' | nama toko spesifik
+    let hppVersions = []; // [ { id, label, effectiveFrom(timestamp), prices: {SKU_CLEAN: harga} } ]
+    const KOLOM_ADV_DIQI = [
+        "No.", "No. Pesanan", "SKU", "Nama Produk", "Jumlah", "No. Resi", "Ekspedisi", 
+        "Tanggal", "Platform", "Status Pesanan", "Nama Toko", "Kirim Resi", "Packing", 
+        "Drop Off", "Dikirim", "Sampai", "Retur", "Keterangan", "Omset Bersih",
+        "HPP", "Laba Bersih"
+    ];
+
+    // FUNGSI SUPER CLEANER: Ngebabat habis semua spasi, koma, kutip, dll. Sisakan huruf & angka!
+    function cleanID(id) {
+        if (!id) return "";
+        return String(id).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    }
+
+    // Parser angka mata uang format Indonesia. Menangani "87.263" (titik = ribuan, artinya 87263)
+    // maupun "1.234.567,89" (titik ribuan + koma desimal), serta angka polos biasa.
+    function parseIDR(text) {
+        if (text === null || text === undefined) return NaN;
+        let s = String(text).trim().replace(/[Rp\s]/gi, '');
+        if (s === '') return NaN;
+        if (/,\d{1,2}$/.test(s)) {
+            // Format "1.234.567,89" -> desimal di koma
+            s = s.replace(/\./g, '').replace(',', '.');
+        } else if (/\.\d{1,2}$/.test(s)) {
+            // Titik diikuti 1-2 digit di akhir = desimal (pemisah ribuan selalu tepat 3 digit)
+            s = s.replace(/,/g, '');
+        } else {
+            // Titik/koma dianggap pemisah ribuan, dibuang semua
+            s = s.replace(/[.,]/g, '');
+        }
+        let n = parseFloat(s);
+        return isNaN(n) ? NaN : n;
+    }
+
+    // Cleaner khusus SKU: trim + uppercase saja (SKU boleh punya tanda strip/underscore)
+    function cleanSKU(sku) {
+        if (!sku) return "";
+        return String(sku).trim().toUpperCase();
+    }
+
+    function classifyStatus(statusText, isCancelled, hasReturnSignal) {
+        // Dibatalkan di titik ini = batal murni sebelum kirim (kasus "batal tapi sebenarnya gagal
+        // kirim" sudah ditangani terpisah lewat teks status gabungan alasan pembatalan, lihat parsing).
+        if (isCancelled) return "Dibatalkan";
+        let sl = (statusText || "").toLowerCase();
+
+        // Sinyal retur PASTI dari kolom terpisah (Shopee: "Status Pembatalan/ Pengembalian" +
+        // "Returned quantity"; TikTok: "Cancelation/Return Type" + "Sku Quantity of return").
+        // Lebih reliable dari nebak teks Status Pesanan doang, karena retur/refund sering dicatat
+        // platform di kolom terpisah, bukan di status pesanan utama.
+        if (hasReturnSignal) return "Retur / Pengembalian";
+
+        // Pengecualian SPESIFIK: "Pesanan diterima, namun Pembeli masih dapat/bisa mengajukan
+        // pengembalian hingga [tanggal]" — ini SELESAI normal (barang sudah nyampe), cuma info
+        // batas waktu KALAU MAU ajukan retur (belum tentu diajukan). Bukan retur yang aktif terjadi.
+        let cumaInfoBatasWaktuRetur = sl.includes("diterima") && (
+            sl.includes("masih dapat mengajukan") || sl.includes("masih bisa mengajukan") ||
+            sl.includes("dapat mengajukan pengembalian") || sl.includes("dapat mengajukan retur")
+        );
+        if (cumaInfoBatasWaktuRetur) return "Selesai";
+
+        // Retur/RTS/pengembalian dalam bentuk apapun (barang balik ke seller, permintaan retur,
+        // pengembalian dana, gagal kirim, dst) — deteksi luas via "embali" (kembali/dikembalikan/
+        // pengembalian) + istilah RTS lainnya, TAPI sudah dikecualikan pola di atas duluan.
+        let gagalKirim = (sl.includes("gagal") && (sl.includes("kirim") || sl.includes("pengiriman") || sl.includes("paket") || sl.includes("terkirim"))) || sl.includes("hilang");
+        if (sl.includes("retur") || sl.includes("embali") || sl.includes("return to seller") || /\brts\b/.test(sl) || gagalKirim) {
+            return "Retur / Pengembalian";
+        }
+
+        if (sl.includes("diterima") || sl.includes("selesai") || sl.includes("completed") || sl.includes("delivered")) return "Selesai";
+        if (!sl) return "Tanpa Status";
+        return "Diproses / Lainnya";
+    }
+
+    // ============== AGREGASI DASHBOARD (berdasarkan set order yang sudah difilter periode) ==============
+    function computeDashboardData(orders, adEntries) {
+        let d = {
+            buckets: { "Selesai": 0, "Dibatalkan": 0, "Retur / Pengembalian": 0, "Diproses / Lainnya": 0, "Tanpa Status": 0 },
+            totalOmset: 0, totalGMV: 0, totalHPP: 0, totalLaba: 0,
+            pendingPencairanHPP: 0, pendingPencairanCount: 0,
+            platform: {},
+            adSpend: { shopee: 0, tiktok: 0 }
+        };
+        orders.forEach(o => {
+            let bucket = classifyStatus(o.status, o.isCancelled, o.hasReturnSignal);
+            d.buckets[bucket] = (d.buckets[bucket] || 0) + 1;
+            d.totalOmset += o.omset;
+            d.totalGMV += o.gmv || 0;
+            d.totalHPP += o.hpp;
+            if (o.labaKnown) d.totalLaba += o.laba;
+            if (o.isPending) { d.pendingPencairanHPP += o.hpp; d.pendingPencairanCount++; }
+            let plat = o.platform || "Lainnya";
+            if (!d.platform[plat]) d.platform[plat] = { orders: 0, omset: 0, hpp: 0, laba: 0 };
+            d.platform[plat].orders++;
+            d.platform[plat].omset += o.omset;
+            d.platform[plat].hpp += o.hpp;
+            if (o.labaKnown) d.platform[plat].laba += o.laba;
+        });
+        adEntries.forEach(e => { d.adSpend[e.platform] += e.amount; });
+        return d;
+    }
+
+    // ============== FILTER PERIODE (Harian / Mingguan / Bulanan / Kuartal / Tahunan) ==============
+    function getPeriodRange(gran, refDate) {
+        let d = new Date(refDate);
+        let start, end;
+        if (gran === 'day') {
+            start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        } else if (gran === 'week') {
+            let day = d.getDay();
+            let diffToMonday = (day === 0 ? -6 : 1) - day;
+            start = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMonday);
+            end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+        } else if (gran === 'quarter') {
+            let q = Math.floor(d.getMonth() / 3);
+            start = new Date(d.getFullYear(), q * 3, 1);
+            end = new Date(d.getFullYear(), q * 3 + 3, 1);
+        } else if (gran === 'year') {
+            start = new Date(d.getFullYear(), 0, 1);
+            end = new Date(d.getFullYear() + 1, 0, 1);
+        } else { // month (default)
+            start = new Date(d.getFullYear(), d.getMonth(), 1);
+            end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        }
+        return { start, end };
+    }
+
+    function formatPeriodLabel(gran, refDate) {
+        const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+        let { start, end } = getPeriodRange(gran, refDate);
+        if (gran === 'day') return start.getDate() + ' ' + bulan[start.getMonth()] + ' ' + start.getFullYear();
+        if (gran === 'week') {
+            let endIncl = new Date(end.getTime() - 86400000);
+            let sameMonth = start.getMonth() === endIncl.getMonth();
+            return start.getDate() + (sameMonth ? '' : ' ' + bulan[start.getMonth()]) + ' – ' + endIncl.getDate() + ' ' + bulan[endIncl.getMonth()] + ' ' + endIncl.getFullYear();
+        }
+        if (gran === 'quarter') return 'Q' + (Math.floor(start.getMonth() / 3) + 1) + ' ' + start.getFullYear();
+        if (gran === 'year') return String(start.getFullYear());
+        return bulan[start.getMonth()] + ' ' + start.getFullYear(); // month
+    }
+
+    function filterByPeriod() {
+        if (!periodState.refDate) return;
+        let { start, end } = getPeriodRange(periodState.granularity, periodState.refDate);
+        let startT = start.getTime(), endT = end.getTime();
+        let ordersF = allOrders.filter(o => o.timestamp >= startT && o.timestamp < endT);
+        let adF = allAdSpendEntries.filter(e => e.timestamp >= startT && e.timestamp < endT);
+        if (platformFilter !== 'all') {
+            ordersF = ordersF.filter(o => o.platform === platformFilter);
+            adF = adF.filter(e => String(e.platform).toLowerCase() === platformFilter.toLowerCase());
+        }
+        if (tokoFilter !== 'all') {
+            // Catatan: biaya iklan (adF) nggak bisa difilter per-toko karena datanya dari file
+            // pencairan yang nggak terhubung ke order/toko tertentu — jadi tetap total semua toko.
+            ordersF = ordersF.filter(o => (o.namaToko || '(Tanpa Label)') === tokoFilter);
+        }
+        dashboardData = computeDashboardData(ordersF, adF);
+        document.getElementById('periodLabel').innerText = formatPeriodLabel(periodState.granularity, periodState.refDate);
+        renderDashboard();
+        renderSalesChart(ordersF, periodState.granularity, start, end);
+    }
+
+    function onPlatformFilterChange() {
+        platformFilter = document.getElementById('platformFilterSelect').value;
+        filterByPeriod();
+    }
+
+    function onTokoFilterChange() {
+        tokoFilter = document.getElementById('tokoFilterSelect').value;
+        filterByPeriod();
+    }
+
+    // Isi ulang pilihan dropdown filter toko berdasarkan label yang benar-benar ada di data
+    function populateTokoFilterOptions() {
+        const select = document.getElementById('tokoFilterSelect');
+        const tokoSet = new Set(allOrders.map(o => o.namaToko || '(Tanpa Label)'));
+        const tokoList = [...tokoSet].sort();
+        const currentValue = select.value;
+        select.innerHTML = `<option value="all">🏬 Semua Toko</option>` +
+            tokoList.map(t => `<option value="${t}">${t}</option>`).join('');
+        // Pertahankan pilihan yang sedang aktif kalau masih valid, kalau nggak balik ke "Semua Toko"
+        if (tokoList.includes(currentValue) || currentValue === 'all') {
+            select.value = currentValue;
+        } else {
+            select.value = 'all';
+            tokoFilter = 'all';
+        }
+    }
+
+    function shiftPeriod(dir) {
+        let d = new Date(periodState.refDate);
+        const gran = periodState.granularity;
+        if (gran === 'day') d.setDate(d.getDate() + dir);
+        else if (gran === 'week') d.setDate(d.getDate() + dir * 7);
+        else if (gran === 'quarter') d.setMonth(d.getMonth() + dir * 3);
+        else if (gran === 'year') d.setFullYear(d.getFullYear() + dir);
+        else d.setMonth(d.getMonth() + dir); // month
+        periodState.refDate = d;
+        filterByPeriod();
+    }
+
+    function onGranularityChange() {
+        periodState.granularity = document.getElementById('periodGranularity').value;
+        filterByPeriod();
+    }
+
+    function toggleHPPHistoryView() {
+        const el = document.getElementById('hppHistoryView');
+        const isOpen = el.style.display !== "none";
+        if (isOpen) {
+            el.style.display = "none";
+        } else {
+            renderHPPHistoryTable();
+            el.style.display = "block";
+        }
+    }
+
+    function renderHPPHistoryTable() {
+        const body = document.getElementById('hppHistoryTableBody');
+        if (hppVersions.length === 0) {
+            body.innerHTML = `<tr><td colspan="4" class="empty-note">Belum ada periode HPP tersimpan.</td></tr>`;
+            return;
+        }
+        let sorted = [...hppVersions].sort((a, b) => b.effectiveFrom - a.effectiveFrom); // terbaru dulu
+        body.innerHTML = sorted.map(v => {
+            let tgl = v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak ditentukan';
+            let count = Object.keys(v.prices).length;
+            return `<tr>
+                <td>${v.label}</td>
+                <td>${tgl}</td>
+                <td>${count} SKU</td>
+                <td style="white-space:nowrap;">
+                    <button type="button" class="btn-ghost" onclick="editHPPVersion('${v.id}')">✏️ Edit</button>
+                    <button type="button" class="btn-ghost" style="color:var(--red);" onclick="deleteHPPVersion('${v.id}')">🗑️ Hapus</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function editHPPVersion(id) {
+        let v = hppVersions.find(x => x.id === id);
+        if (!v) return;
+        let labelBaru = prompt(`Nama periode:`, v.label);
+        if (labelBaru === null) return; // dibatalkan
+        if (!labelBaru.trim()) { alert("Nama periode tidak boleh kosong."); return; }
+
+        let tglDefault = v.effectiveFrom ? new Date(v.effectiveFrom).toISOString().slice(0, 10) : "";
+        let tglBaruStr = prompt(`Tanggal berlaku mulai (format YYYY-MM-DD):`, tglDefault);
+        if (tglBaruStr === null) return; // dibatalkan
+        let tglBaru = tglBaruStr.trim() ? parseDateCustom(tglBaruStr.trim()) : 0;
+
+        v.label = labelBaru.trim();
+        v.effectiveFrom = tglBaru;
+        hppVersions.sort((a, b) => a.effectiveFrom - b.effectiveFrom);
+        saveHPPToCache();
+        refreshDashboardAfterHPPChange();
+    }
+
+    function deleteHPPVersion(id) {
+        let v = hppVersions.find(x => x.id === id);
+        if (!v) return;
+        if (!confirm(`Hapus periode HPP "${v.label}"? (${Object.keys(v.prices).length} SKU di dalamnya ikut terhapus)`)) return;
+        hppVersions = hppVersions.filter(x => x.id !== id);
+        saveHPPToCache();
+        refreshDashboardAfterHPPChange();
+    }
+
+    // Hitung ulang dashboard begitu HPP berubah (edit/hapus), kalau data pesanan sudah ada
+    function refreshDashboardAfterHPPChange() {
+        let persistedOrders = loadPersistedOrders();
+        if (Object.keys(persistedOrders).length > 0) {
+            buildOutputsFromPesananMap(persistedOrders);
+            filterByPeriod();
+            renderPreview();
+            renderNoSkuList();
+            renderAnomaliList();
+        renderReturList();
+        }
+    }
+
+    // ============== FITUR CACHE HPP BERBASIS VERSI/PERIODE (localStorage) ==============
+    // Harga modal bisa berubah dari waktu ke waktu. Tiap upload jadi satu "periode" (nama + tanggal
+    // mulai berlaku + daftar harga SKU-nya), bukan detail per SKU satu-satu. Order dihitung pakai
+    // periode yang berlaku SAAT order itu terjadi, bukan ikut berubah kalau kamu tambah periode baru.
+    function migrateOldHppToVersions(parsed) {
+        // Migrasi dari format lama: bisa "flat number" {SKU: harga} atau "historis per-SKU" {SKU: [{price, effectiveFrom}]}
+        let byDate = {}; // effectiveFrom -> {sku: harga}
+        for (let sku in parsed) {
+            let v = parsed[sku];
+            if (Array.isArray(v)) {
+                v.forEach(entry => {
+                    let key = entry.effectiveFrom || 0;
+                    if (!byDate[key]) byDate[key] = {};
+                    byDate[key][sku] = entry.price;
+                });
+            } else if (typeof v === 'number') {
+                if (!byDate[0]) byDate[0] = {};
+                byDate[0][sku] = v;
+            }
+        }
+        let versions = [];
+        for (let key in byDate) {
+            let ts = parseInt(key);
+            let label = ts ? `Migrasi - ${new Date(ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Migrasi - Data Awal';
+            versions.push({ id: 'v_migrated_' + key, label, effectiveFrom: ts, prices: byDate[key] });
+        }
+        return versions;
+    }
+
+    function loadHPPFromCache() {
+        try {
+            const raw = localStorage.getItem('hppCacheData');
+            let parsed = raw ? JSON.parse(raw) : null;
+            if (!parsed) {
+                hppVersions = [];
+            } else if (Array.isArray(parsed)) {
+                hppVersions = parsed; // sudah format versi baru
+            } else {
+                hppVersions = migrateOldHppToVersions(parsed); // format lama -> migrasi otomatis
+                if (hppVersions.length > 0) saveHPPToCache(); // simpan ulang dalam format baru
+            }
+        } catch (e) {
+            hppVersions = [];
+        }
+        updateHPPStatusUI();
+    }
+
+    function saveHPPToCache() {
+        localStorage.setItem('hppCacheData', JSON.stringify(hppVersions));
+        localStorage.setItem('hppCacheUpdatedAt', new Date().toISOString());
+        updateHPPStatusUI();
+        const historyView = document.getElementById('hppHistoryView');
+        if (historyView && historyView.style.display !== "none") renderHPPHistoryTable();
+        queueSyncToCloud();
+    }
+
+    // Ambil harga modal SKU yang berlaku pada tanggal order tertentu: cari periode dengan
+    // effectiveFrom <= tanggal order yang PALING BARU dan memuat SKU itu. Kalau order lebih lama
+    // dari semua periode yang ada, pakai periode PALING LAMA yang memuat SKU itu (asumsi terbaik).
+    function getHPPAtDate(skuClean, timestamp) {
+        let applicablePrice, applicableFrom = -Infinity;
+        let earliestPrice, earliestFrom = Infinity;
+        hppVersions.forEach(v => {
+            if (v.prices[skuClean] === undefined) return;
+            if (v.effectiveFrom <= timestamp && v.effectiveFrom >= applicableFrom) {
+                applicablePrice = v.prices[skuClean];
+                applicableFrom = v.effectiveFrom;
+            }
+            if (v.effectiveFrom < earliestFrom) {
+                earliestFrom = v.effectiveFrom;
+                earliestPrice = v.prices[skuClean];
+            }
+        });
+        return applicablePrice !== undefined ? applicablePrice : earliestPrice;
+    }
+
+    function updateHPPStatusUI() {
+        const el = document.getElementById('hppStatus');
+        const summaryEl = document.getElementById('hppSummaryInfo');
+        if (!el) return;
+        if (hppVersions.length === 0) {
+            el.innerHTML = `<span style="color:#888;">Belum ada data HPP tersimpan. Upload file di atas dengan nama periode & tanggal berlaku.</span>`;
+            if (summaryEl) { summaryEl.innerText = "— belum diatur"; summaryEl.style.color = "var(--amber)"; }
+        } else {
+            let allSku = new Set();
+            hppVersions.forEach(v => Object.keys(v.prices).forEach(s => allSku.add(s)));
+            const updatedAt = localStorage.getItem('hppCacheUpdatedAt');
+            const tgl = updatedAt ? new Date(updatedAt).toLocaleString('id-ID') : '-';
+            el.innerHTML = `<span style="color:#28a745; font-weight:bold;">✅ ${hppVersions.length} periode tersimpan, ${allSku.size} SKU unik (update terakhir: ${tgl})</span> ` +
+                `<button type="button" onclick="hapusHPP()" style="width:auto; background:#dc3545; padding:6px 14px; margin-left:10px; font-size:13px;">🗑️ Hapus Semua</button>`;
+            if (summaryEl) { summaryEl.innerText = `— ${hppVersions.length} periode, ${allSku.size} SKU`; summaryEl.style.color = "var(--muted)"; }
+        }
+    }
+
+    function hapusHPP() {
+        if (!confirm("Yakin mau hapus SEMUA periode HPP dari cache? Kamu perlu upload ulang setelahnya.")) return;
+        hppVersions = [];
+        localStorage.removeItem('hppCacheData');
+        localStorage.removeItem('hppCacheUpdatedAt');
+        updateHPPStatusUI();
+        refreshDashboardAfterHPPChange();
+    }
+
+    // Cari kolom SKU & Harga Modal secara fleksibel dari file HPP
+    function extractHPP(rawArray) {
+        let entries = []; // { sku, harga }
+        if (!rawArray) return entries;
+
+        let headerFound = false;
+        let skuIdx = -1, hargaIdx = -1;
+
+        for (let i = 0; i < rawArray.length; i++) {
+            const row = rawArray[i];
+            if (!row || row.length === 0) continue;
+
+            if (!headerFound) {
+                for (let j = 0; j < row.length; j++) {
+                    let cellStr = String(row[j]).trim().toLowerCase();
+                    if (cellStr === "sku" || cellStr.includes("kode sku") || cellStr.includes("sku produk") || cellStr.includes("seller sku")) {
+                        skuIdx = j;
+                    }
+                    if (cellStr.includes("harga modal") || cellStr === "hpp" || cellStr.includes("harga pokok") || cellStr.includes("modal")) {
+                        hargaIdx = j;
+                    }
+                }
+                if (skuIdx !== -1 && hargaIdx !== -1) headerFound = true;
+            } else {
+                let sku = cleanSKU(row[skuIdx]);
+                let harga = parseIDR(row[hargaIdx]);
+                if (sku && !isNaN(harga)) {
+                    entries.push({ sku, harga });
+                }
+            }
+        }
+        return entries;
+    }
+
+    async function prosesHPP() {
+        const files = document.getElementById('fHPP').files;
+        const label = document.getElementById('hppVersionLabel').value.trim();
+        const tglStr = document.getElementById('hppVersionDate').value;
+
+        if (files.length === 0) {
+            alert("Upload file HPP terlebih dahulu (harus ada kolom SKU dan Harga Modal).");
+            return;
+        }
+        if (!label) {
+            alert("Isi nama periode dulu (misal: 'Juli - seterusnya').");
+            return;
+        }
+
+        try {
+            let combinedPrices = {};
+            for (let i = 0; i < files.length; i++) {
+                let rawData = await readExcelRaw(files[i]);
+                let entries = extractHPP(rawData);
+                if (entries.length === 0) {
+                    alert(`File "${files[i].name}" tidak menemukan kolom SKU/Harga Modal yang cocok. Pastikan ada header "SKU" dan "Harga Modal".`);
+                    continue;
+                }
+                entries.forEach(e => { combinedPrices[e.sku] = e.harga; });
+            }
+
+            let totalSKU = Object.keys(combinedPrices).length;
+            if (totalSKU === 0) {
+                alert("Tidak ada data SKU yang berhasil dibaca dari file yang diupload.");
+                return;
+            }
+
+            let effectiveFrom = tglStr ? parseDateCustom(tglStr) : Date.now();
+            let version = {
+                id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                label: label,
+                effectiveFrom: effectiveFrom,
+                prices: combinedPrices
+            };
+            hppVersions.push(version);
+            hppVersions.sort((a, b) => a.effectiveFrom - b.effectiveFrom);
+            saveHPPToCache();
+
+            document.getElementById('fHPP').value = "";
+            document.getElementById('hppVersionLabel').value = "";
+            document.getElementById('hppVersionDate').value = "";
+
+            alert(`Periode HPP "${label}" berhasil disimpan (${totalSKU} SKU)!`);
+            refreshDashboardAfterHPPChange();
+        } catch (e) {
+            console.error(e);
+            alert("Gagal memproses file HPP. Periksa console browser untuk detail.");
+        }
+    }
+
+    // ============== LOGIN & SINKRONISASI CLOUD ==============
+    function updateSyncBadge(state) {
+        const el = document.getElementById('syncBadge');
+        if (!el) return;
+        el.className = 'sync-badge ' + state;
+        el.innerText = state === 'ok' ? '☁️ Tersinkron' : state === 'syncing' ? '🔄 Menyimpan...' : '⚠️ Gagal sync (cek koneksi)';
+    }
+
+    function showLoginGate() { document.getElementById('loginGate').classList.remove('hidden'); }
+    function hideLoginGate() { document.getElementById('loginGate').classList.add('hidden'); }
+
+    async function doLogin() {
+        const pwInput = document.getElementById('loginPasswordInput');
+        const errEl = document.getElementById('loginError');
+        errEl.style.display = 'none';
+        cloudApiUrl = localStorage.getItem('cloudApiUrl') || window.location.origin;
+
+        try {
+            const res = await fetch(cloudApiUrl + '/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwInput.value })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.token) {
+                errEl.innerText = data.error || 'Login gagal.';
+                errEl.style.display = 'block';
+                return;
+            }
+            sessionToken = data.token;
+            localStorage.setItem('sessionToken', sessionToken);
+            localStorage.setItem('cloudApiUrl', cloudApiUrl);
+            hideLoginGate();
+            await initialLoadFromCloud();
+        } catch (e) {
+            errEl.innerText = 'Nggak bisa hubungi server. Pastikan URL API sudah benar & API sudah di-deploy.';
+            errEl.style.display = 'block';
+        }
+    }
+
+    async function fetchFromCloud() {
+        const res = await fetch(cloudApiUrl + '/api/data', { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        if (res.status === 401) { const e = new Error('unauthorized'); e.status = 401; throw e; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+    }
+
+    function applyCloudDataToLocalStorage(data) {
+        // Tulis ulang localStorage persis format yang sudah dipakai fungsi-fungsi lain di tools ini,
+        // supaya seluruh logic pemrosesan/perhitungan yang sudah ada TIDAK perlu diubah sama sekali.
+        localStorage.setItem(LS_ORDERS, JSON.stringify(data.orders || {}));
+        localStorage.setItem(LS_ADSPEND, JSON.stringify(data.adSpend || {}));
+        localStorage.setItem(LS_UNCLASSIFIED, JSON.stringify(data.unclassified || {}));
+        localStorage.setItem('hppCacheData', JSON.stringify(data.hppVersions || []));
+        localStorage.setItem(LS_SKU_OVERRIDE, JSON.stringify(data.skuOverrides || {}));
+        localStorage.setItem(LS_RETUR_CONFIRM, JSON.stringify(data.returConfirmations || {}));
+    }
+
+    async function pushToCloud() {
+        if (!sessionToken) return;
+        const payload = {
+            orders: loadPersistedOrders(),
+            adSpend: loadPersistedAdSpend(),
+            unclassified: loadPersistedUnclassified(),
+            hppVersions: hppVersions,
+            skuOverrides: loadSkuOverrides(),
+            returConfirmations: returConfirmations
+        };
+        const res = await fetch(cloudApiUrl + '/api/data', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.status === 401) {
+            sessionToken = ''; localStorage.removeItem('sessionToken'); showLoginGate();
+            throw new Error('unauthorized');
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+    }
+
+    // Sinkronisasi di-debounce (nunggu 1.5 detik dari perubahan TERAKHIR) biar nggak nge-spam API
+    // kalau ada beberapa perubahan beruntun (misal upload data + centang beberapa retur sekaligus).
+    let syncTimeout = null;
+    function queueSyncToCloud() {
+        if (!sessionToken) return; // belum login / lagi mode offline-cache
+        updateSyncBadge('syncing');
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(async () => {
+            try { await pushToCloud(); updateSyncBadge('ok'); }
+            catch (e) { console.error('Gagal sync ke cloud:', e); updateSyncBadge('error'); }
+        }, 1500);
+    }
+
+    async function initialLoadFromCloud() {
+        try {
+            updateSyncBadge('syncing');
+            const data = await fetchFromCloud();
+            applyCloudDataToLocalStorage(data);
+            updateSyncBadge('ok');
+        } catch (e) {
+            console.error('Gagal ambil data dari cloud, pakai cache lokal:', e);
+            updateSyncBadge('error');
+            if (e.status === 401) { showLoginGate(); return; }
+        }
+        loadHPPFromCache();
+        loadFromStorage();
+    }
+
+    async function initAuth() {
+        cloudApiUrl = localStorage.getItem('cloudApiUrl') || window.location.origin;
+        sessionToken = localStorage.getItem('sessionToken') || '';
+        if (!sessionToken) { showLoginGate(); return; }
+        hideLoginGate();
+        await initialLoadFromCloud();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { initAuth(); });
+    // ================================================================
+
+    function parseDateCustom(dateStr) {
+        if (!dateStr) return 0;
+        let d = String(dateStr).trim();
+        if (!isNaN(d) && !d.includes("-") && !d.includes("/")) {
+            let excelDays = parseFloat(d);
+            return new Date(Math.round((excelDays - 25569) * 86400 * 1000)).getTime(); 
+        }
+        let parts = d.split(" ");
+        let datePart = parts[0];
+        let timePart = parts[1] || "00:00:00";
+        let year, month, day;
+        let dateSplit = datePart.includes("-") ? datePart.split("-") : datePart.split("/");
+        if (dateSplit.length === 3) {
+            if (dateSplit[0].length === 4) { year = dateSplit[0]; month = dateSplit[1]; day = dateSplit[2]; } 
+            else { day = dateSplit[0]; month = dateSplit[1]; year = dateSplit[2]; }
+        }
+        let timeSplit = timePart.split(":");
+        let hour = timeSplit[0] || 0; let minute = timeSplit[1] || 0; let second = timeSplit[2] || 0;
+        if (year && month && day) return new Date(year, month - 1, day, hour, minute, second).getTime();
+        let fallback = new Date(d).getTime();
+        return isNaN(fallback) ? 0 : fallback;
+    }
+
+    function formatDateToDDMMYYYY(timestamp) {
+        if (!timestamp) return "";
+        let d = new Date(timestamp);
+        let day = String(d.getDate()).padStart(2, '0');
+        let month = String(d.getMonth() + 1).padStart(2, '0');
+        let year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    // MEMBACA EXCEL SEBAGAI ARRAY MENTAH
+    function readExcelRaw(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellText: true, cellDates: false });
+                const ws = workbook.Sheets[workbook.SheetNames[0]];
+
+                // --- JURUS BYPASS BUG DIMENSI TIKTOK ---
+                let maxRow = 0, maxCol = 0;
+                for (let cellAddress in ws) {
+                    if (cellAddress[0] === '!') continue;
+                    let decoded = XLSX.utils.decode_cell(cellAddress);
+                    if (decoded.r > maxRow) maxRow = decoded.r;
+                    if (decoded.c > maxCol) maxCol = decoded.c;
+                }
+                ws['!ref'] = XLSX.utils.encode_range({s: {c:0, r:0}, e: {c:maxCol, r:maxRow}});
+                // ----------------------------------------
+
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
+                
+                const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    for (let C = range.s.c; C <= range.e.c; C++) {
+                        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                        const cell = ws[addr];
+                        if (cell && cell.t === 'n' && Math.abs(cell.v) > 9007199254740991) {
+                            rows[R][C] = cell.w || String(cell.v);
+                        }
+                    }
+                }
+                resolve(rows);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    // MEMBACA EXCEL SEBAGAI OBJECT
+    function readExcelObj(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellText: true, cellDates: false });
+                const ws = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // --- JURUS BYPASS BUG DIMENSI TIKTOK ---
+                let maxRow = 0, maxCol = 0;
+                for (let cellAddress in ws) {
+                    if (cellAddress[0] === '!') continue;
+                    let decoded = XLSX.utils.decode_cell(cellAddress);
+                    if (decoded.r > maxRow) maxRow = decoded.r;
+                    if (decoded.c > maxCol) maxCol = decoded.c;
+                }
+                ws['!ref'] = XLSX.utils.encode_range({s: {c:0, r:0}, e: {c:maxCol, r:maxRow}});
+                // ----------------------------------------
+
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    for (let C = range.s.c; C <= range.e.c; C++) {
+                        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                        const cell = ws[addr];
+                        if (cell && cell.t === 'n' && Math.abs(cell.v) > 9007199254740991) {
+                            cell.t = 's';
+                            cell.v = cell.w || String(cell.v);
+                        }
+                    }
+                }
+                resolve(XLSX.utils.sheet_to_json(ws, { defval: "", raw: false }));
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function extractSaldo(rawArray) {
+        let map = {};
+        let adSpend = { shopee: 0, tiktok: 0 };
+        let adSpendEntries = [];
+        let unclassified = []; // transaksi yang bukan order & bukan biaya iklan (perlu ditelusuri manual)
+        if (!rawArray) return { map, adSpend, adSpendEntries, unclassified };
+
+        let headerFound = false;
+        let noPesIdx = -1, jumlahIdx = -1, dateIdx = -1, descIdxPrimary = -1, descIdxFallback = -1;
+
+        for (let i = 0; i < rawArray.length; i++) {
+            const row = rawArray[i];
+            if (!row || row.length === 0) continue;
+
+            if (!headerFound) {
+                // PENCARIAN KOLOM SUPER FLEKSIBEL
+                for (let j = 0; j < row.length; j++) {
+                    let cellStr = String(row[j]).trim().toLowerCase();
+                    
+                    if (cellStr.includes("no. pesanan") || cellStr.includes("order/adjustment id") || cellStr.includes("id pesanan/penyesuaian") || cellStr === "order id") {
+                        noPesIdx = j;
+                    }
+                    if (cellStr === "jumlah" || cellStr === "nominal" || cellStr.includes("total settlement amount") || cellStr.includes("jumlah penyelesaian") || cellStr.includes("settlement amount")) {
+                        // Hindari salah tangkap total revenue
+                        if (!cellStr.includes("revenue") && !cellStr.includes("refund")) {
+                            jumlahIdx = j;
+                        }
+                    }
+                    if (cellStr.includes("waktu transaksi") || cellStr.includes("tanggal transaksi") || cellStr.includes("order created time") || cellStr.includes("waktu pesanan dibuat") || cellStr.includes("waktu pembayaran") || cellStr.includes("waktu pemesanan")) {
+                        dateIdx = j;
+                    }
+                    // Prioritas 1: kolom deskripsi/teks bebas (paling akurat isi keterangannya)
+                    if (cellStr.includes("deskripsi") || cellStr.includes("description") || cellStr.includes("catatan") || cellStr.includes("remark")) {
+                        descIdxPrimary = j;
+                    }
+                    // Prioritas 2 (fallback): kolom jenis/tipe transaksi — kadang cuma berisi arah (masuk/keluar), 
+                    // jadi cuma dipakai kalau kolom deskripsi beneran nggak ketemu
+                    if (cellStr.includes("keterangan") || cellStr.includes("jenis transaksi") || cellStr.includes("tipe transaksi") || cellStr.includes("nama transaksi")) {
+                        descIdxFallback = j;
+                    }
+                }
+                if (noPesIdx !== -1 && jumlahIdx !== -1) headerFound = true;
+            } else {
+                let noPes = cleanID(row[noPesIdx]);
+                let val = parseIDR(row[jumlahIdx]);
+                let dateVal = dateIdx !== -1 ? String(row[dateIdx]).trim() : "";
+                
+                if (isNaN(val)) val = undefined;
+
+                // Baris biaya iklan (bukan baris order) — dikenali dari kolom deskripsi/jenis transaksi
+                let descIdx = descIdxPrimary !== -1 ? descIdxPrimary : descIdxFallback;
+                let desc = descIdx !== -1 ? String(row[descIdx] || "").trim() : "";
+                let descLower = desc.toLowerCase();
+                let adPlatform = null;
+                if (descLower.includes("isi ulang") && descLower.includes("iklan")) {
+                    adPlatform = "shopee";
+                } else if (descLower.includes("pembayaran iklan") || descLower.includes("gmv pay deduction") || (descLower.includes("iklan") && descLower.includes("gmv"))) {
+                    adPlatform = "tiktok";
+                }
+                if (adPlatform) {
+                    let amount = Math.abs(val || 0);
+                    adSpend[adPlatform] += amount;
+                    adSpendEntries.push({ platform: adPlatform, amount: amount, timestamp: parseDateCustom(dateVal) });
+                }
+
+                if (noPes) {
+                    if (!map[noPes]) map[noPes] = { omset: val, date: dateVal };
+                    else if (val !== undefined) map[noPes].omset = (map[noPes].omset !== undefined ? map[noPes].omset : 0) + val;
+                } else if (!adPlatform && val !== undefined && val !== 0) {
+                    // Baris ini punya nominal, tapi TIDAK ada No. Pesanan DAN bukan biaya iklan yang dikenali —
+                    // kemungkinan refund, penalti, biaya lain, atau transaksi baru yang belum dikenali sistem.
+                    unclassified.push({ description: desc || "(tanpa keterangan)", amount: val, timestamp: parseDateCustom(dateVal) });
+                }
+            }
+        }
+        return { map, adSpend, adSpendEntries, unclassified };
+    }
+
+    async function getCombinedSaldo(files) {
+        let masterMap = {};
+        let adSpendTotal = { shopee: 0, tiktok: 0 };
+        let adSpendEntriesAll = [];
+        let unclassifiedAll = [];
+        for (let i = 0; i < files.length; i++) {
+            let rawData = await readExcelRaw(files[i]);
+            let { map: fileMap, adSpend, adSpendEntries, unclassified } = extractSaldo(rawData);
+            adSpendTotal.shopee += adSpend.shopee;
+            adSpendTotal.tiktok += adSpend.tiktok;
+            adSpendEntriesAll = adSpendEntriesAll.concat(adSpendEntries);
+            unclassifiedAll = unclassifiedAll.concat(unclassified);
+            // TIMPA per order antar file (bukan dijumlahkan) — kalau order yang sama muncul di lebih
+            // dari 1 file (misal file yang sama diupload 2x, atau rentang tanggal file overlap),
+            // file yang diproses BELAKANGAN yang menang. Ini yang mencegah dobel hitung pencairan.
+            // (Di DALAM 1 file, baris-baris untuk order yang sama tetap dijumlahkan di extractSaldo —
+            // itu memang perlu, karena 1 order kadang punya beberapa baris: harga produk, ongkir, biaya admin, dst.)
+            for (let key in fileMap) {
+                masterMap[key] = fileMap[key];
+            }
+        }
+        return { orderMap: masterMap, adSpend: adSpendTotal, adSpendEntries: adSpendEntriesAll, unclassified: unclassifiedAll };
+    }
+
+    // ============== PENYIMPANAN LOKAL (localStorage) — biar data nggak hilang saat refresh ==============
+    const LS_ORDERS = 'rekapAdvDiqi_ordersV2';
+    const LS_ADSPEND = 'rekapAdvDiqi_adSpendV2';
+    const LS_UNCLASSIFIED = 'rekapAdvDiqi_unclassifiedV1';
+    const LS_SKU_OVERRIDE = 'rekapAdvDiqi_skuOverrideV1';
+    const LS_RETUR_CONFIRM = 'rekapAdvDiqi_returConfirmV1';
+    const LS_UPDATED = 'rekapAdvDiqi_lastUpdated';
+
+    function loadPersistedOrders() {
+        try { return JSON.parse(localStorage.getItem(LS_ORDERS)) || {}; } catch (e) { return {}; }
+    }
+    function loadPersistedAdSpend() {
+        try { return JSON.parse(localStorage.getItem(LS_ADSPEND)) || {}; } catch (e) { return {}; }
+    }
+    function loadPersistedUnclassified() {
+        try { return JSON.parse(localStorage.getItem(LS_UNCLASSIFIED)) || {}; } catch (e) { return {}; }
+    }
+    function loadSkuOverrides() {
+        try { return JSON.parse(localStorage.getItem(LS_SKU_OVERRIDE)) || {}; } catch (e) { return {}; }
+    }
+    function saveSkuOverrides(overrides) {
+        localStorage.setItem(LS_SKU_OVERRIDE, JSON.stringify(overrides));
+        queueSyncToCloud();
+    }
+    function loadReturConfirmations() {
+        try { return JSON.parse(localStorage.getItem(LS_RETUR_CONFIRM)) || {}; } catch (e) { return {}; }
+    }
+    function saveReturConfirmations() {
+        localStorage.setItem(LS_RETUR_CONFIRM, JSON.stringify(returConfirmations));
+        queueSyncToCloud();
+    }
+    function toggleReturConfirm(noPesanan, checked) {
+        returConfirmations[noPesanan] = checked;
+        saveReturConfirmations();
+        // Centang/uncentang ini mengubah perhitungan HPP & Laba Bersih (lihat isReturConfirmedBack
+        // di buildOutputsFromPesananMap), jadi harus hitung ulang semua, bukan cuma render ulang panelnya.
+        refreshDashboardAfterHPPChange();
+    }
+    function savePersisted(ordersMap, adSpendMap, unclassifiedMap) {
+        localStorage.setItem(LS_ORDERS, JSON.stringify(ordersMap));
+        localStorage.setItem(LS_ADSPEND, JSON.stringify(adSpendMap));
+        if (unclassifiedMap !== undefined) localStorage.setItem(LS_UNCLASSIFIED, JSON.stringify(unclassifiedMap));
+        localStorage.setItem(LS_UPDATED, new Date().toISOString());
+        queueSyncToCloud();
+    }
+
+    function resetAllData() {
+        if (!confirm("Hapus semua data pesanan & pencairan yang tersimpan? Data HPP, koreksi SKU, dan checklist retur tidak ikut terhapus.")) return;
+        localStorage.removeItem(LS_ORDERS);
+        localStorage.removeItem(LS_ADSPEND);
+        localStorage.removeItem(LS_UNCLASSIFIED);
+        localStorage.removeItem(LS_UPDATED);
+        allOrders = []; allAdSpendEntries = []; finalData = []; allUnclassifiedEntries = []; ordersTanpaStatus = []; returList = [];
+        document.getElementById('dashArea').style.display = "none";
+        const msg = document.getElementById('statusMsg');
+        msg.className = ""; msg.innerText = "";
+        document.getElementById('uploadSummaryInfo').innerText = "";
+        document.getElementById('btnDownload').style.display = "none";
+        document.getElementById('uploadDetails').open = true;
+        queueSyncToCloud(); // push status kosong ini ke cloud juga, biar device lain ikut ke-reset
+    }
+
+    // Bangun ulang finalData & allOrders dari sebuah pesananMap (dipakai baik sesudah upload baru maupun saat load dari cache)
+    function buildOutputsFromPesananMap(pesananMap) {
+        let pesananList = Object.values(pesananMap);
+        pesananList.sort((a, b) => a.timestamp - b.timestamp);
+
+        finalData = [];
+        allOrders = [];
+        itemsTanpaSKU = [];
+        ordersTanpaStatus = [];
+        returList = [];
+        let rowIndex = 0;
+
+        pesananList.forEach(p => {
+            let statusLower = p.status.toLowerCase();
+            let isDone = statusLower === "selesai" || statusLower === "completed" || statusLower === "delivered" || (p.omset !== undefined && p.omset !== "");
+
+            // Order dengan status kosong/tidak dikenali sama sekali — bukan Selesai, Dibatalkan, Retur, ataupun
+            // status umum lain. Perlu ditelusuri manual, bisa jadi data pesanan yang aneh/rusak dari sumbernya.
+            if (classifyStatus(p.status, p.isCancelled, p.hasReturnSignal) === "Tanpa Status") {
+                ordersTanpaStatus.push({ noPesanan: p.noPesanan, platform: p.platform, timestamp: p.timestamp, omset: p.omset });
+            }
+
+            let totalHPPOrder = 0;
+            let semuaHargaKetemu = true;
+            if (!p.isCancelled) {
+                p.items.forEach(it => {
+                    // Kalau SKU aslinya kosong, coba pakai koreksi SKU yang sudah diupload sebelumnya
+                    let effectiveSku = it.sku || skuOverrides[p.noPesanan + '||' + it.namaProduk] || it.sku;
+                    if (!cleanSKU(effectiveSku)) {
+                        itemsTanpaSKU.push({ noPesanan: p.noPesanan, namaProduk: it.namaProduk, jumlah: it.jumlah, platform: p.platform, timestamp: p.timestamp, status: p.status });
+                    }
+                    let hargaModal = getHPPAtDate(cleanSKU(effectiveSku), p.timestamp);
+                    if (hargaModal === undefined) semuaHargaKetemu = false;
+                    else totalHPPOrder += hargaModal * it.jumlah;
+                });
+            }
+
+            // Kalau order ini Retur/Pengembalian DAN sudah dikonfirmasi manual sampai gudang, modalnya
+            // dianggap "aman" (barang balik ke stok) — HPP-nya dinolkan lagi di semua kartu/perhitungan
+            // dashboard, supaya nggak terus-terusan tercatat sebagai belanja modal yang hilang.
+            // Panel checklist "Pesanan Retur" sendiri tetap nunjukin nilai HPP ASLI (totalHPPOrder) sebagai referensi.
+            let isReturConfirmedBack = classifyStatus(p.status, p.isCancelled, p.hasReturnSignal) === "Retur / Pengembalian" && !!returConfirmations[p.noPesanan];
+            let effectiveHPP = isReturConfirmedBack ? 0 : totalHPPOrder;
+
+            let isPending = !p.isCancelled && (p.omset === "" || p.omset === undefined);
+            let orderOmset = (!p.isCancelled && p.omset !== "") ? p.omset : 0;
+            let orderHPP = p.isCancelled ? 0 : effectiveHPP;
+            let orderGMV = p.isCancelled ? 0 : (p.gmv || 0);
+            let orderLaba = (!p.isCancelled && p.omset !== "" && semuaHargaKetemu) ? (p.omset - effectiveHPP) : 0;
+            let labaKnown = (!p.isCancelled && p.omset !== "" && semuaHargaKetemu);
+
+            // Pesanan berstatus Retur/Pengembalian — dicatat terpisah biar bisa dipantau: apakah
+            // paketnya sudah beneran balik sampai gudang atau belum (checklist manual).
+            if (classifyStatus(p.status, p.isCancelled, p.hasReturnSignal) === "Retur / Pengembalian") {
+                returList.push({ noPesanan: p.noPesanan, resi: p.resi || '-', platform: p.platform, timestamp: p.timestamp, hpp: totalHPPOrder, confirmed: isReturConfirmedBack, status: p.status });
+            }
+
+            allOrders.push({
+                platform: p.platform,
+                namaToko: p.namaToko || "",
+                timestamp: p.timestamp,
+                status: p.status,
+                isCancelled: p.isCancelled,
+                hasReturnSignal: p.hasReturnSignal,
+                isPending: isPending,
+                omset: orderOmset,
+                gmv: orderGMV,
+                hpp: orderHPP,
+                laba: orderLaba,
+                labaKnown: labaKnown
+            });
+
+            p.items.forEach((it, idx) => {
+                rowIndex++;
+                let isFirst = idx === 0;
+                let effectiveSku = it.sku || skuOverrides[p.noPesanan + '||' + it.namaProduk] || it.sku;
+                let hargaModal = getHPPAtDate(cleanSKU(effectiveSku), p.timestamp);
+                let hppLine = (!p.isCancelled && hargaModal !== undefined) ? (isReturConfirmedBack ? 0 : hargaModal * it.jumlah) : "";
+                let omsetRow = (isFirst && !p.isCancelled) ? p.omset : "";
+                let labaRow = (isFirst && !p.isCancelled && p.omset !== "" && semuaHargaKetemu) ? (p.omset - effectiveHPP) : "";
+
+                finalData.push({
+                    "No.": rowIndex,
+                    "No. Pesanan": p.noPesanan,
+                    "SKU": effectiveSku,
+                    "Nama Produk": it.namaProduk,
+                    "Jumlah": it.jumlah,
+                    "No. Resi": isFirst ? p.resi : "",
+                    "Ekspedisi": isFirst ? p.ekspedisi : "",
+                    "Tanggal": isFirst ? formatDateToDDMMYYYY(p.timestamp) : "",
+                    "Platform": isFirst ? p.platform : "",
+                    "Status Pesanan": isFirst ? p.status : "",
+                    "Nama Toko": isFirst ? (p.namaToko || "") : "",
+                    "Kirim Resi": (isFirst && !p.isCancelled) ? (isDone || (statusLower !== "belum bayar" && statusLower !== "unpaid" && p.status !== "")) : "",
+                    "Packing": (isFirst && !p.isCancelled) ? (isDone || ["perlu dikirim", "dikirim", "awaiting shipment", "shipped"].includes(statusLower)) : "",
+                    "Drop Off": (isFirst && !p.isCancelled) ? (isDone || ["dikirim", "shipped"].includes(statusLower)) : "",
+                    "Dikirim": (isFirst && !p.isCancelled) ? (isDone || ["dikirim", "shipped"].includes(statusLower)) : "",
+                    "Sampai": (isFirst && !p.isCancelled) ? isDone : "",
+                    "Retur": isFirst ? (classifyStatus(p.status, p.isCancelled, p.hasReturnSignal) === "Retur / Pengembalian") : "",
+                    "Keterangan": isFirst ? p.keterangan : "",
+                    "Omset Bersih": omsetRow,
+                    "HPP": hppLine,
+                    "Laba Bersih": labaRow
+                });
+            });
+        });
+    }
+
+    function downloadNoSkuList() {
+        if (itemsTanpaSKU.length === 0) {
+            alert("Tidak ada item tanpa SKU saat ini — nggak ada yang perlu didownload.");
+            return;
+        }
+        const data = itemsTanpaSKU.map(it => ({
+            "No. Pesanan": it.noPesanan,
+            "Nama Produk": it.namaProduk,
+            "Jumlah": it.jumlah,
+            "Platform": it.platform,
+            "Status": it.status,
+            "SKU": "" // kolom ini yang diisi manual, lalu upload lagi filenya
+        }));
+        const ws = XLSX.utils.json_to_sheet(data, { header: ["No. Pesanan", "Nama Produk", "Jumlah", "Platform", "Status", "SKU"] });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Tanpa SKU");
+        XLSX.writeFile(wb, "pesanan tanpa sku.xlsx");
+    }
+
+    async function prosesSkuOverride() {
+        const files = document.getElementById('fSkuOverride').files;
+        if (files.length === 0) {
+            alert("Upload file yang sudah diisi kolom SKU-nya terlebih dahulu.");
+            return;
+        }
+        try {
+            let rows = await readExcelObj(files[0]);
+            let count = 0;
+            rows.forEach(r => {
+                let np = cleanID(r["No. Pesanan"] || "");
+                let produk = String(r["Nama Produk"] || "").trim();
+                let sku = String(r["SKU"] || "").trim();
+                if (np && produk && sku) {
+                    skuOverrides[np + '||' + produk] = sku;
+                    count++;
+                }
+            });
+            if (count === 0) {
+                alert("Tidak ada baris valid yang terbaca. Pastikan kolom 'No. Pesanan', 'Nama Produk', dan 'SKU' terisi.");
+                return;
+            }
+            saveSkuOverrides(skuOverrides);
+            document.getElementById('fSkuOverride').value = "";
+            alert(`${count} koreksi SKU berhasil disimpan.`);
+            refreshDashboardAfterHPPChange();
+        } catch (e) {
+            console.error(e);
+            alert("Gagal memproses file. Periksa console browser untuk detail.");
+        }
+    }
+
+    function renderAnomaliList() {
+        const bulan = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+        // --- Pesanan tanpa status ---
+        const infoStatus = document.getElementById('anomaliStatusSummaryInfo');
+        const bodyStatus = document.getElementById('anomaliStatusTableBody');
+        if (ordersTanpaStatus.length === 0) {
+            infoStatus.innerText = "— tidak ada anomali status";
+            infoStatus.style.color = "var(--green)";
+            bodyStatus.innerHTML = `<tr><td colspan="4" class="empty-note">Semua pesanan punya status yang jelas. 👍</td></tr>`;
+        } else {
+            infoStatus.innerText = `— ${ordersTanpaStatus.length} pesanan perlu dicek`;
+            infoStatus.style.color = "var(--red)";
+            bodyStatus.innerHTML = ordersTanpaStatus.map(o => {
+                let d = new Date(o.timestamp);
+                let tgl = o.timestamp ? `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}` : "-";
+                return `<tr><td>${o.noPesanan}</td><td>${o.platform}</td><td>${tgl}</td><td>${o.omset !== "" ? fmtRupiah(o.omset) : '-'}</td></tr>`;
+            }).join('');
+        }
+
+        // --- Transaksi pencairan tidak terklasifikasi ---
+        const infoTrans = document.getElementById('anomaliTransSummaryInfo');
+        const bodyTrans = document.getElementById('anomaliTransTableBody');
+        if (allUnclassifiedEntries.length === 0) {
+            infoTrans.innerText = "— tidak ada transaksi tidak dikenali";
+            infoTrans.style.color = "var(--green)";
+            bodyTrans.innerHTML = `<tr><td colspan="3" class="empty-note">Semua transaksi di file pencairan sudah terklasifikasi. 👍</td></tr>`;
+        } else {
+            infoTrans.innerText = `— ${allUnclassifiedEntries.length} transaksi perlu dicek`;
+            infoTrans.style.color = "var(--red)";
+            let sorted = [...allUnclassifiedEntries].sort((a, b) => b.timestamp - a.timestamp);
+            bodyTrans.innerHTML = sorted.map(e => {
+                let d = new Date(e.timestamp);
+                let tgl = e.timestamp ? `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}` : "-";
+                return `<tr><td>${tgl}</td><td>${e.description}</td><td>${fmtRupiah(e.amount)}</td></tr>`;
+            }).join('');
+        }
+    }
+
+    function renderReturList() {
+        const bulan = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+        const info = document.getElementById('returSummaryInfo');
+        const body = document.getElementById('returTableBody');
+
+        if (returList.length === 0) {
+            info.innerText = "— tidak ada retur";
+            info.style.color = "var(--green)";
+            body.innerHTML = `<tr><td colspan="6" class="empty-note">Tidak ada pesanan retur saat ini. 👍</td></tr>`;
+            return;
+        }
+
+        // Yang BELUM dikonfirmasi selalu di atas (biar gampang dikerjain), yang SUDAH dikonfirmasi
+        // otomatis turun ke bawah. Dalam masing-masing kelompok, diurutkan terbaru dulu.
+        let sorted = [...returList].sort((a, b) => {
+            let aConfirmed = !!returConfirmations[a.noPesanan];
+            let bConfirmed = !!returConfirmations[b.noPesanan];
+            if (aConfirmed !== bConfirmed) return aConfirmed ? 1 : -1;
+            return b.timestamp - a.timestamp;
+        });
+        let confirmedCount = sorted.filter(r => returConfirmations[r.noPesanan]).length;
+        let modalBerisiko = sorted.filter(r => !returConfirmations[r.noPesanan]).reduce((a, r) => a + r.hpp, 0);
+
+        info.innerText = `— ${confirmedCount}/${sorted.length} sudah dikonfirmasi sampai gudang` + (modalBerisiko > 0 ? `, modal belum dikonfirmasi: ${fmtRupiah(modalBerisiko)}` : '');
+        info.style.color = modalBerisiko > 0 ? "var(--amber)" : "var(--green)";
+
+        // Filter pencarian berdasarkan No. Pesanan / No. Resi (summary di atas tetap hitung SEMUA retur,
+        // cuma tabelnya yang disaring biar gampang nyari 1 pesanan spesifik)
+        const searchInput = document.getElementById('returSearchInput');
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        let filtered = searchTerm
+            ? sorted.filter(r => String(r.noPesanan).toLowerCase().includes(searchTerm) || String(r.resi).toLowerCase().includes(searchTerm))
+            : sorted;
+
+        if (filtered.length === 0) {
+            body.innerHTML = `<tr><td colspan="6" class="empty-note">Tidak ada pesanan retur yang cocok dengan pencarian "${searchTerm}".</td></tr>`;
+            return;
+        }
+
+        body.innerHTML = filtered.map(r => {
+            let d = new Date(r.timestamp);
+            let tgl = r.timestamp ? `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}` : "-";
+            let isConfirmed = !!returConfirmations[r.noPesanan];
+            let checked = isConfirmed ? "checked" : "";
+            let rowStyle = isConfirmed ? 'style="background:var(--green-bg);"' : '';
+            let hppLabel = isConfirmed ? `${fmtRupiah(r.hpp)} <span style="color:var(--green); font-size:11px;">✓ HPP dinolkan</span>` : fmtRupiah(r.hpp);
+            return `<tr ${rowStyle}>
+                <td>${r.noPesanan}</td>
+                <td>${r.resi || '-'}</td>
+                <td>${tgl}</td>
+                <td>${r.platform}</td>
+                <td>${hppLabel}</td>
+                <td style="text-align:center;">
+                    <input type="checkbox" ${checked} onchange="toggleReturConfirm('${r.noPesanan}', this.checked)" style="width:18px; height:18px; cursor:pointer;">
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderNoSkuList() {
+        const info = document.getElementById('noSkuSummaryInfo');
+        const body = document.getElementById('noSkuTableBody');
+        const bulan = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+        if (itemsTanpaSKU.length === 0) {
+            info.innerText = "— semua item sudah punya SKU";
+            info.style.color = "var(--green)";
+            body.innerHTML = `<tr><td colspan="6" class="empty-note">Tidak ada item tanpa SKU. 👍</td></tr>`;
+            return;
+        }
+        info.innerText = `— ${itemsTanpaSKU.length} item perlu dicek`;
+        info.style.color = "var(--red)";
+        body.innerHTML = itemsTanpaSKU.map(it => {
+            let d = new Date(it.timestamp);
+            let tgl = it.timestamp ? `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}` : "-";
+            return `<tr><td>${it.noPesanan}</td><td>${it.namaProduk || '-'}</td><td>${it.jumlah}</td><td>${it.platform}</td><td>${tgl}</td><td>${it.status || '-'}</td></tr>`;
+        }).join('');
+    }
+
+    function showDashboardFromCurrentData(statusText, statusClass) {
+        let latestTs = allOrders.reduce((max, o) => o.timestamp > max ? o.timestamp : max, 0);
+        periodState.granularity = document.getElementById('periodGranularity').value || 'month';
+        periodState.refDate = latestTs ? new Date(latestTs) : new Date();
+
+        populateTokoFilterOptions();
+        filterByPeriod();
+        renderPreview();
+        renderNoSkuList();
+        renderAnomaliList();
+        renderReturList();
+
+        const msg = document.getElementById('statusMsg');
+        msg.className = statusClass;
+        msg.innerText = statusText;
+        document.getElementById('btnDownload').style.display = "block";
+        document.getElementById('uploadDetails').open = false;
+        document.getElementById('uploadSummaryInfo').innerText = `— ${allOrders.length} pesanan tersimpan`;
+    }
+
+    // Muat data tersimpan (kalau ada) begitu halaman dibuka
+    function loadFromStorage() {
+        let persistedOrders = loadPersistedOrders();
+        let persistedAdSpend = loadPersistedAdSpend();
+        skuOverrides = loadSkuOverrides();
+        returConfirmations = loadReturConfirmations();
+        allUnclassifiedEntries = Object.values(loadPersistedUnclassified());
+        if (Object.keys(persistedOrders).length === 0) {
+            renderAnomaliList();
+            renderReturList();
+            return;
+        }
+
+        allAdSpendEntries = Object.values(persistedAdSpend);
+        buildOutputsFromPesananMap(persistedOrders);
+
+        let lastUpdated = localStorage.getItem(LS_UPDATED);
+        let lastUpdatedStr = lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+        showDashboardFromCurrentData(`Menampilkan data tersimpan (${allOrders.length} pesanan). Terakhir diupdate: ${lastUpdatedStr}.`, "info");
+    }
+
+    // Cocokkan No. Pesanan ke data pencairan — termasuk fuzzy match 12 digit awal khusus TikTok
+    // (beberapa ID TikTok di file pencairan suka kepotong/beda format dikit dari file pesanan).
+    function findSaldoMatch(noPesanan, masterSaldoMap) {
+        let saldoInfo = masterSaldoMap[noPesanan];
+        if (!saldoInfo && noPesanan.length >= 15) {
+            let prefix = noPesanan.substring(0, 12);
+            for (let k in masterSaldoMap) {
+                if (k.length >= 15 && k.startsWith(prefix)) {
+                    saldoInfo = masterSaldoMap[k];
+                    break;
+                }
+            }
+        }
+        return saldoInfo;
+    }
+
+    async function prosesData() {
+        const msg = document.getElementById('statusMsg');
+        const fPesananFiles = document.getElementById('fPesanan').files;
+        const fSaldoFiles = document.getElementById('fSaldo').files;
+        const namaTokoInput = document.getElementById('namaTokoInput').value.trim();
+
+        if (fPesananFiles.length === 0 && fSaldoFiles.length === 0) {
+            alert("Upload minimal 1 file pesanan atau file pencairan.");
+            return;
+        }
+
+        msg.className = "info";
+        msg.innerText = "Memproses data pesanan dan pencairan...";
+
+        try {
+            const { orderMap: masterSaldoMap, adSpend, adSpendEntries, unclassified } = await getCombinedSaldo(fSaldoFiles);
+            let newPesananMap = {};
+
+            let totalRowsSeen = 0;
+            let skippedRowsNoId = 0;
+
+            for (let i = 0; i < fPesananFiles.length; i++) {
+                let ordData = await readExcelObj(fPesananFiles[i]);
+                // Diproses ke map terpisah PER FILE dulu — supaya kalau ada 2 file yang isinya
+                // tumpang tindih/duplikat (misal file yang sama diupload 2x dengan nama beda),
+                // hasilnya di-TIMPA (bukan dijumlahkan) saat digabung ke newPesananMap di bawah.
+                // Deteksi multi-SKU dalam satu order tetap akurat karena baris-barisnya memang
+                // selalu ada dalam file yang sama (bukan lintas file).
+                let filePesananMap = {};
+
+                ordData.forEach(p => {
+                    totalRowsSeen++;
+                    let pClean = {};
+                    for (let key in p) pClean[key.trim()] = p[key];
+
+                    let rawNoPesanan = pClean["No. Pesanan"] || pClean["Order ID"] || "";
+                    if (!rawNoPesanan || rawNoPesanan === "Platform unique order ID.") { skippedRowsNoId++; return; }
+
+                    let noPesanan = cleanID(rawNoPesanan); 
+
+                    let statusPesananRaw = String(pClean["Status Pesanan"] || pClean["Order Status"] || pClean["Order status"] || "").trim();
+                    let alasanPembatalan = String(pClean["Alasan Pembatalan"] || pClean["Cancel Reason"] || "").trim();
+                    let alasanLower = alasanPembatalan.toLowerCase();
+
+                    // Sebagian order berstatus "Batal"/"Dibatalkan" itu SEBENARNYA RTS (paket sudah
+                    // dikirim tapi gagal terkirim/balik ke gudang) ATAU paket HILANG di perjalanan —
+                    // bukan batal murni (belum dibayar, ganti alamat/metode bayar, dst). Kedua kasus
+                    // ini tetap makan modal karena barang udah terlanjur dikirim, jadi HARUS tetap
+                    // dihitung & ditandai buat direview manual, bukan di-skip kayak batal biasa.
+                    let isGagalKirim = (alasanLower.includes("gagal") && (alasanLower.includes("kirim") || alasanLower.includes("pengiriman") || alasanLower.includes("paket") || alasanLower.includes("terkirim"))) || alasanLower.includes("hilang");
+
+                    let statusRawLower = statusPesananRaw.toLowerCase();
+                    let isCancelledMurni = (statusRawLower.includes("batal") || statusRawLower.includes("cancel")) && !isGagalKirim;
+
+                    // Status yang disimpan & dipakai buat klasifikasi digabung dengan alasannya —
+                    // lebih informatif ditampilkan, dan otomatis kebaca sebagai Retur/RTS oleh
+                    // classifyStatus (yang mendeteksi kombinasi kata "gagal"+"kirim"/"pengiriman").
+                    let status = alasanPembatalan ? `${statusPesananRaw} - ${alasanPembatalan}` : statusPesananRaw;
+                    let isCancelled = isCancelledMurni;
+
+                    // Sinyal retur dari kolom TERPISAH (bukan dari Status Pesanan utama) — Shopee:
+                    // "Status Pembatalan/ Pengembalian" + "Returned quantity"; TikTok: "Cancelation/Return
+                    // Type" + "Sku Quantity of return". Banyak kasus retur dicatat platform di kolom ini,
+                    // BUKAN di status pesanan utama, jadi kalau nggak dibaca di sini bisa kelewat kebaca
+                    // sebagai "Selesai" padahal sebenarnya ada retur/refund yang terjadi.
+                    let statusPembatalanPengembalian = String(pClean["Status Pembatalan/ Pengembalian"] || "").trim();
+                    let returnedQtyShopee = parseFloat(pClean["Returned quantity"]) || 0;
+                    let cancelationReturnType = String(pClean["Cancelation/Return Type"] || "").trim();
+                    let returnedQtyTiktok = parseFloat(pClean["Sku Quantity of return"]) || 0;
+                    let hasReturnSignal = returnedQtyShopee > 0 || returnedQtyTiktok > 0 ||
+                        (!!statusPembatalanPengembalian && statusPembatalanPengembalian.toLowerCase() !== 'nan') ||
+                        (!!cancelationReturnType && cancelationReturnType.toLowerCase() !== 'cancel' && cancelationReturnType.toLowerCase() !== 'nan');
+
+                    let isShopee = pClean["No. Pesanan"] !== undefined;
+                    let platform = isShopee ? "Shopee" : "Tiktok";
+
+                    let jumlah = 1;
+                    if (isShopee) {
+                        // "Jumlah" = quantity per baris/SKU. "Jumlah Produk di Pesan" itu TOTAL quantity
+                        // se-order (diulang di tiap baris) — jangan dipakai kalau order-nya multi-SKU.
+                        jumlah = parseInt(pClean["Jumlah"] || pClean["Jumlah Produk di Pesan"] || 1);
+                    } else {
+                        jumlah = parseInt(pClean["Quantity"] || pClean["Jumlah"] || 1);
+                    }
+
+                    let namaProduk = pClean["Nama Produk"] || pClean["Product Name"] || "";
+                    // Catatan: "SKU ID" sengaja TIDAK dipakai sebagai fallback — itu ID internal
+                    // platform (TikTok), bukan kode SKU buatan seller, jadi nggak akan pernah cocok
+                    // sama data HPP kamu. Kalau dipakai, item yang sebenarnya belum ada SKU-nya jadi
+                    // kelihatan "punya SKU" padahal cuma ID internal, dan nggak kedeteksi di daftar
+                    // "Pesanan Tanpa SKU".
+                    let sku = pClean["Nomor Referensi SKU"] || pClean["SKU Induk"] || pClean["Seller SKU"] || "";
+
+                    // Order isi >1 jenis barang (baris SKU/produk lain untuk order yang sama, DALAM FILE INI) —
+                    // dicatat sebagai item terpisah. Kalau SKU-nya persis sama, jumlahnya digabung.
+                    if (filePesananMap[noPesanan]) {
+                        let existingItem = filePesananMap[noPesanan].items.find(it => cleanSKU(it.sku) === cleanSKU(sku) && it.namaProduk === namaProduk);
+                        if (existingItem) {
+                            existingItem.jumlah += jumlah;
+                        } else {
+                            filePesananMap[noPesanan].items.push({ sku: sku, namaProduk: namaProduk, jumlah: jumlah });
+                        }
+                        // Kalau baris ke-2/3/dst (varian lain) di order yang sama punya sinyal retur,
+                        // seluruh order tetap harus ke-flag walau baris pertamanya nggak punya sinyal itu.
+                        if (hasReturnSignal) filePesananMap[noPesanan].hasReturnSignal = true;
+                        return;
+                    }
+
+                    let saldoInfo = findSaldoMatch(noPesanan, masterSaldoMap) || {};
+
+                    let tanggalAsli = pClean["Waktu Pesanan Dibuat"] || pClean["Created Time"] || pClean["Waktu Dibuat"] || saldoInfo.date || "";
+                    let ekspedisi = pClean["Opsi Pengiriman"] || pClean["Shipping Provider Name"] || pClean["Shipping Provider"] || pClean["Penyedia Pengiriman"] || "";
+                    let gmv = parseIDR(pClean["Total Pembayaran"] !== undefined ? pClean["Total Pembayaran"] : pClean["Order Amount"]);
+                    if (isNaN(gmv)) gmv = 0;
+
+                    filePesananMap[noPesanan] = {
+                        platform: platform,
+                        noPesanan: noPesanan,
+                        status: status,
+                        isCancelled: isCancelled,
+                        items: [{ sku: sku, namaProduk: namaProduk, jumlah: jumlah }],
+                        resi: pClean["No. Resi"] || pClean["Tracking ID"] || pClean["Nomor Resi"] || "",
+                        ekspedisi: ekspedisi,
+                        timestamp: parseDateCustom(tanggalAsli),
+                        keterangan: pClean["Catatan dari Pembeli"] || pClean["Buyer Message"] || pClean["Catatan"] || "",
+                        omset: saldoInfo.omset !== undefined ? saldoInfo.omset : "",
+                        gmv: gmv,
+                        namaToko: namaTokoInput,
+                        hasReturnSignal: hasReturnSignal
+                    };
+                });
+
+                // Gabung hasil file ini ke newPesananMap dengan TIMPA (bukan jumlahkan) —
+                // kalau order yang sama juga ada di file lain dalam batch yang sama, file yang
+                // diproses belakangan yang menang. Ini yang mencegah dobel hitung.
+                for (let key in filePesananMap) newPesananMap[key] = filePesananMap[key];
+            }
+
+            // --- Merge dengan data yang sudah tersimpan sebelumnya ---
+            // Order dengan No. Pesanan yang sama akan di-update (data terbaru menang); order lama yang tidak
+            // ikut terupload lagi tetap dipertahankan. Ini yang bikin bisa nambah data berkala tanpa upload ulang semuanya.
+            let persistedOrders = loadPersistedOrders();
+            let persistedAdSpend = loadPersistedAdSpend();
+            let persistedUnclassified = loadPersistedUnclassified();
+
+            for (let key in newPesananMap) {
+                let newOrder = newPesananMap[key];
+                let oldOrder = persistedOrders[key];
+                // Order ini mungkin sudah pernah ketemu pencairannya sebelumnya (dari upload file
+                // pencairan di sesi lain). Kalau upload pesanan kali ini TIDAK menyertakan file
+                // pencairan yang match ke order ini lagi, jangan sampai status pencairan yang sudah
+                // ada sebelumnya ikut hilang/ke-reset jadi kosong — pertahankan nilai lama.
+                // (Kalau memang ada data pencairan baru yang match di upload kali ini, itu tetap
+                // menang — lihat pass "update pencairan retroaktif" di bawah.)
+                if (oldOrder && oldOrder.omset !== undefined && oldOrder.omset !== "" && (newOrder.omset === "" || newOrder.omset === undefined)) {
+                    newOrder.omset = oldOrder.omset;
+                }
+                // Sama halnya buat nama toko: kalau upload kali ini nggak diisi label toko,
+                // pertahankan label yang sudah ada sebelumnya (jangan sampai kehapus jadi kosong).
+                if (oldOrder && oldOrder.namaToko && !newOrder.namaToko) {
+                    newOrder.namaToko = oldOrder.namaToko;
+                }
+                persistedOrders[key] = newOrder;
+            }
+            adSpendEntries.forEach(e => {
+                let key = `${e.platform}_${e.timestamp}_${e.amount}`;
+                persistedAdSpend[key] = e;
+            });
+            unclassified.forEach(e => {
+                let key = `${e.description}_${e.timestamp}_${e.amount}`;
+                persistedUnclassified[key] = e;
+            });
+
+            // --- File pencairan bisa diupload STANDALONE (tanpa file pesanan) ---
+            // Kalau ada file pencairan, cocokkan ke SEMUA pesanan yang sudah tersimpan (bukan cuma
+            // yang baru diupload kali ini), supaya "Pencairan" pesanan lama otomatis ter-update begitu
+            // laporan pencairannya baru kamu upload belakangan.
+            let pencairanUpdateCount = 0;
+            if (fSaldoFiles.length > 0) {
+                for (let key in persistedOrders) {
+                    let saldoInfo = findSaldoMatch(key, masterSaldoMap);
+                    if (saldoInfo && saldoInfo.omset !== undefined && persistedOrders[key].omset !== saldoInfo.omset) {
+                        persistedOrders[key].omset = saldoInfo.omset;
+                        pencairanUpdateCount++;
+                    }
+                }
+            }
+
+            savePersisted(persistedOrders, persistedAdSpend, persistedUnclassified);
+            allAdSpendEntries = Object.values(persistedAdSpend);
+            allUnclassifiedEntries = Object.values(persistedUnclassified);
+            buildOutputsFromPesananMap(persistedOrders);
+
+            let totalItemLines = finalData.length;
+            let hppMatched = finalData.filter(r => r["HPP"] !== "").length;
+            let jumlahBaru = Object.keys(newPesananMap).length;
+
+            let pesanText = jumlahBaru > 0 ? `${jumlahBaru} pesanan baru diproses dan digabung ke data tersimpan.` : `Tidak ada file pesanan baru diupload.`;
+            let pencairanText = pencairanUpdateCount > 0 ? ` ${pencairanUpdateCount} pesanan ter-update status pencairannya.` : (fSaldoFiles.length > 0 ? ` Tidak ada pesanan tersimpan yang cocok dengan file pencairan ini.` : '');
+            let auditText = skippedRowsNoId > 0 ? ` ⚠️ ${skippedRowsNoId} dari ${totalRowsSeen} baris di file pesanan DILEWATI karena tidak ada No. Pesanan (baris kosong/rusak) — cek file asli kalau ini nggak sesuai ekspektasi.` : (totalRowsSeen > 0 ? ` Semua ${totalRowsSeen} baris di file pesanan berhasil diidentifikasi (0 dilewati).` : '');
+
+            showDashboardFromCurrentData(
+                `${pesanText}${pencairanText}${auditText} Total sekarang: ${allOrders.length} pesanan (${totalItemLines} baris SKU), ${hppMatched} baris cocok dengan data HPP.`,
+                "success"
+            );
+
+        } catch (error) {
+            console.error(error);
+            msg.className = "error";
+            msg.innerText = "Terjadi kesalahan saat memproses data. Cek console browser untuk detail.";
+        }
+    }
+
+    function fmtRupiah(n) {
+        if (n === null || n === undefined || isNaN(n)) return "Rp 0";
+        let neg = n < 0;
+        let s = "Rp " + Math.round(Math.abs(n)).toLocaleString('id-ID');
+        return neg ? "-" + s : s;
+    }
+
+    // ============== GRAFIK TREN PENJUALAN (terintegrasi dengan filter periode) ==============
+    let chartMetric = 'omset';
+
+    function onChartMetricChange() {
+        chartMetric = document.getElementById('chartMetricSelect').value;
+        let { start, end } = getPeriodRange(periodState.granularity, periodState.refDate);
+        let startT = start.getTime(), endT = end.getTime();
+        let ordersF = allOrders.filter(o => o.timestamp >= startT && o.timestamp < endT);
+        if (platformFilter !== 'all') ordersF = ordersF.filter(o => o.platform === platformFilter);
+        renderSalesChart(ordersF, periodState.granularity, start, end);
+    }
+
+    function metricValueOf(list, metric) {
+        if (metric === 'omset') return list.reduce((a, o) => a + (o.omset || 0), 0);
+        if (metric === 'gmv') return list.reduce((a, o) => a + (o.gmv || 0), 0);
+        if (metric === 'laba') return list.reduce((a, o) => a + (o.labaKnown ? o.laba : 0), 0);
+        return list.length; // jumlah pesanan
+    }
+
+    function bucketOrdersForChart(orders, gran, start, metric) {
+        let buckets = [];
+        if (gran === 'day') {
+            for (let h = 0; h < 24; h++) {
+                let hStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h).getTime();
+                let hEnd = hStart + 3600000;
+                let list = orders.filter(o => o.timestamp >= hStart && o.timestamp < hEnd);
+                buckets.push({ label: String(h), value: metricValueOf(list, metric) });
+            }
+        } else if (gran === 'week') {
+            const namaHari = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+            for (let i = 0; i < 7; i++) {
+                let dStart = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i).getTime();
+                let dEnd = dStart + 86400000;
+                let list = orders.filter(o => o.timestamp >= dStart && o.timestamp < dEnd);
+                buckets.push({ label: namaHari[i], value: metricValueOf(list, metric) });
+            }
+        } else if (gran === 'month') {
+            let daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+            for (let d = 1; d <= daysInMonth; d++) {
+                let dStart = new Date(start.getFullYear(), start.getMonth(), d).getTime();
+                let dEnd = dStart + 86400000;
+                let list = orders.filter(o => o.timestamp >= dStart && o.timestamp < dEnd);
+                buckets.push({ label: String(d), value: metricValueOf(list, metric) });
+            }
+        } else if (gran === 'quarter') {
+            const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+            let startMonth = start.getMonth();
+            for (let i = 0; i < 3; i++) {
+                let m = startMonth + i;
+                let mStart = new Date(start.getFullYear(), m, 1).getTime();
+                let mEnd = new Date(start.getFullYear(), m + 1, 1).getTime();
+                let list = orders.filter(o => o.timestamp >= mStart && o.timestamp < mEnd);
+                buckets.push({ label: bulan[m], value: metricValueOf(list, metric) });
+            }
+        } else { // year
+            const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+            for (let m = 0; m < 12; m++) {
+                let mStart = new Date(start.getFullYear(), m, 1).getTime();
+                let mEnd = new Date(start.getFullYear(), m + 1, 1).getTime();
+                let list = orders.filter(o => o.timestamp >= mStart && o.timestamp < mEnd);
+                buckets.push({ label: bulan[m], value: metricValueOf(list, metric) });
+            }
+        }
+        return buckets;
+    }
+
+    function renderSalesChart(orders, gran, start, end) {
+        const container = document.getElementById('salesChartContainer');
+        if (!container) return;
+
+        const buckets = bucketOrdersForChart(orders, gran, start, chartMetric);
+        const hasNeg = buckets.some(b => b.value < 0);
+        const maxAbs = Math.max(...buckets.map(b => Math.abs(b.value)), 1);
+        const barCount = buckets.length;
+        const perBarWidth = 30;
+        const svgWidth = Math.max(340, barCount * perBarWidth);
+        const chartH = 130;
+        const topPad = 10;
+        const labelY = topPad + chartH + 16;
+        const svgHeight = labelY + 14;
+        const baselineY = hasNeg ? topPad + chartH / 2 : topPad + chartH;
+        const barW = Math.max((svgWidth / barCount) - 6, 3);
+
+        let parts = buckets.map((b, i) => {
+            let x = i * (svgWidth / barCount) + ((svgWidth / barCount) - barW) / 2;
+            let barH = maxAbs > 0 ? (Math.abs(b.value) / maxAbs) * (hasNeg ? chartH / 2 : chartH) : 0;
+            let y = b.value >= 0 ? baselineY - barH : baselineY;
+            let color = chartMetric === 'laba'
+                ? (b.value < 0 ? 'var(--red)' : 'var(--green)')
+                : (chartMetric === 'gmv' ? 'var(--amber)' : (chartMetric === 'jumlah' ? 'var(--navy-2)' : 'var(--blue)'));
+            let valLabel = chartMetric === 'jumlah' ? `${b.value} pesanan` : fmtRupiah(b.value);
+            return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(barH, 1).toFixed(1)}" rx="2.5" fill="${color}" opacity="0.88"><title>${b.label}: ${valLabel}</title></rect>` +
+                   `<text x="${(x + barW / 2).toFixed(1)}" y="${labelY}" font-size="9" fill="var(--muted)" text-anchor="middle">${b.label}</text>`;
+        }).join('');
+
+        let baselineLine = hasNeg ? `<line x1="0" y1="${baselineY}" x2="${svgWidth}" y2="${baselineY}" stroke="var(--border)" stroke-width="1"/>` : '';
+
+        if (orders.length === 0 && buckets.every(b => b.value === 0)) {
+            container.innerHTML = `<p class="empty-note">Belum ada data di periode ini.</p>`;
+            return;
+        }
+
+        container.innerHTML = `<div style="overflow-x:auto;"><svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; min-width:${Math.min(svgWidth, 300)}px; height:${svgHeight}px; display:block;">${baselineLine}${parts}</svg></div>`;
+    }
+
+    function renderDashboard() {
+        if (!dashboardData) return;
+        const d = dashboardData;
+        const total = Object.values(d.buckets).reduce((a, b) => a + b, 0) || 1;
+
+        // --- Kartu ringkasan pesanan ---
+        const orderCards = [
+            { lbl: "Total Pesanan", val: total, cls: "navy", sub: "Semua status" },
+            { lbl: "Selesai", val: d.buckets["Selesai"], cls: "green", sub: (d.buckets["Selesai"]/total*100).toFixed(1)+"% dari total" },
+            { lbl: "Diproses / Dikirim", val: d.buckets["Diproses / Lainnya"] + d.buckets["Tanpa Status"], cls: "blue", sub: "Belum sampai / belum selesai" },
+            { lbl: "Dibatalkan", val: d.buckets["Dibatalkan"], cls: "red", sub: (d.buckets["Dibatalkan"]/total*100).toFixed(1)+"% dari total" },
+            { lbl: "Retur / Pengembalian", val: d.buckets["Retur / Pengembalian"], cls: "amber", sub: (d.buckets["Retur / Pengembalian"]/total*100).toFixed(1)+"% dari total" }
+        ];
+        document.getElementById('orderStats').innerHTML = orderCards.map(c => `
+            <div class="stat-card ${c.cls}">
+                <div class="lbl">${c.lbl}</div>
+                <div class="val">${c.val}</div>
+                <div class="sub">${c.sub}</div>
+            </div>`).join('');
+
+        // --- Kartu ringkasan keuangan ---
+        let totalAdSpend = d.adSpend.shopee + d.adSpend.tiktok;
+        let labaBersihFinal = d.totalLaba - totalAdSpend; // Pencairan - HPP - Iklan
+        let ratioAds = d.totalOmset > 0 ? (totalAdSpend / d.totalOmset * 100).toFixed(1) : "0.0";
+
+        const financeCards = [
+            { lbl: "Total Omzet / GMV", val: fmtRupiah(d.totalGMV), cls: "blue", sub: "Nilai transaksi kotor sebelum potongan" },
+            { lbl: "Pencairan", val: fmtRupiah(d.totalOmset), cls: "navy", sub: "Dana yang sudah cair dari platform" },
+            { lbl: "Total HPP (Modal)", val: fmtRupiah(d.totalHPP), cls: "amber", sub: "" },
+            { lbl: "Biaya Iklan", val: fmtRupiah(totalAdSpend), cls: "red", sub: `Shopee ${fmtRupiah(d.adSpend.shopee)} • TikTok ${fmtRupiah(d.adSpend.tiktok)} (${ratioAds}% dari pencairan)` },
+            { lbl: "Pending Pencairan", val: fmtRupiah(d.pendingPencairanHPP), cls: "amber", sub: `${d.pendingPencairanCount} pesanan belum cair — sementara ditampilkan sebesar HPP-nya` },
+            { lbl: "Laba Bersih", val: fmtRupiah(labaBersihFinal), cls: labaBersihFinal >= 0 ? "green" : "red", sub: "Pencairan - HPP - Biaya Iklan" }
+        ];
+        document.getElementById('financeStats').innerHTML = financeCards.map(c => `
+            <div class="stat-card ${c.cls}">
+                <div class="lbl">${c.lbl}</div>
+                <div class="val" style="font-size:18px;">${c.val}</div>
+                <div class="sub">${c.sub}</div>
+            </div>`).join('');
+
+        // --- Breakdown status (bar) ---
+        const colors = { "Selesai": "var(--green)", "Dibatalkan": "var(--red)", "Retur / Pengembalian": "var(--amber)", "Diproses / Lainnya": "var(--blue)", "Tanpa Status": "#9aa4bf" };
+        let barsHtml = "";
+        Object.keys(d.buckets).forEach(k => {
+            let count = d.buckets[k];
+            if (count === 0) return;
+            let pct = (count / total * 100).toFixed(1);
+            barsHtml += `
+            <div class="bar-row">
+                <div class="top"><span>${k}</span><span>${count} (${pct}%)</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${colors[k]}"></div></div>
+            </div>`;
+        });
+        document.getElementById('statusBars').innerHTML = barsHtml;
+
+        // --- Tabel per platform ---
+        const dotColor = { "Shopee": "var(--shopee)", "Tiktok": "var(--tiktok2)" };
+        let rowsHtml = Object.keys(d.platform).map(plat => {
+            let s = d.platform[plat];
+            return `<tr>
+                <td><span class="plat-dot" style="background:${dotColor[plat] || '#9aa4bf'}"></span>${plat}</td>
+                <td>${s.orders}</td>
+                <td>${fmtRupiah(s.omset)}</td>
+                <td>${fmtRupiah(s.hpp)}</td>
+                <td>${fmtRupiah(s.laba)}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('platformTable').innerHTML = `
+            <thead><tr><th>Platform</th><th>Pesanan</th><th>Omset Bersih</th><th>HPP</th><th>Laba Kotor</th></tr></thead>
+            <tbody>${rowsHtml || '<tr><td colspan="5" style="color:#999">Belum ada data</td></tr>'}</tbody>`;
+
+        document.getElementById('dashArea').style.display = "block";
+    }
+
+    function renderPreview() {
+        const head = document.getElementById('tableHead');
+        const body = document.getElementById('tableBody');
+        
+        head.innerHTML = "<tr>" + KOLOM_ADV_DIQI.map(k => `<th>${k}</th>`).join('') + "</tr>";
+        
+        body.innerHTML = finalData.slice(0, 5).map(row => {
+            return "<tr>" + KOLOM_ADV_DIQI.map(k => `<td>${row[k] === "" ? "" : row[k]}</td>`).join('') + "</tr>";
+        }).join('') + (finalData.length > 5 ? `<tr><td colspan="${KOLOM_ADV_DIQI.length}" style="text-align:center; background:#f9f9f9;">... dan ${finalData.length - 5} baris pesanan lainnya ...</td></tr>` : "");
+    }
+
+    function downloadExcel() {
+        const ws = XLSX.utils.json_to_sheet(finalData, { header: KOLOM_ADV_DIQI });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "ADV DIQI");
+        XLSX.writeFile(wb, "rekap data.xls");
+    }
+
+    function downloadTemplateHPP() {
+        const templateData = [
+            { "SKU": "CONTOH-SKU-001", "Harga Modal": 15000 },
+            { "SKU": "CONTOH-SKU-002", "Harga Modal": 27500 }
+        ];
+        const ws = XLSX.utils.json_to_sheet(templateData, { header: ["SKU", "Harga Modal"] });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template HPP");
+        XLSX.writeFile(wb, "template hpp.xlsx");
+    }
+</script>
+
+</body>
+</html>

@@ -62,7 +62,15 @@ export async function onRequestGet({ request, env }) {
         let returConfirmations = {};
         for (const r of returRows.results) returConfirmations[r.noPesanan] = !!r.confirmed;
 
-        return withCors(json({ orders, adSpend, unclassified, hppVersions, skuOverrides, returConfirmations }));
+        // Pencairan per-order (tabel 'pencairan'). Dibungkus try/catch: kalau tabelnya belum dibuat
+        // di D1, aplikasi tetap jalan seperti biasa (cuma pencairan-duluan belum bisa tersimpan).
+        let pencairan = {};
+        try {
+            const pRows = await db.prepare('SELECT * FROM pencairan').all();
+            for (const r of pRows.results) pencairan[r.noPesanan] = { omset: r.omset, date: r.tanggal || '' };
+        } catch (e) { /* tabel pencairan belum ada */ }
+
+        return withCors(json({ orders, adSpend, unclassified, pencairan, hppVersions, skuOverrides, returConfirmations }));
     } catch (e) {
         return withCors(json({ error: 'Gagal mengambil data: ' + e.message }, 500));
     }
@@ -132,7 +140,27 @@ export async function onRequestPost({ request, env }) {
 
         await db.batch(statements);
 
-        return withCors(json({ success: true, ordersCount: Object.keys(data.orders || {}).length }));
+        // --- Pencairan per-order: batch TERPISAH + try/catch, supaya kalau tabel 'pencairan' belum
+        // dibuat di D1, sinkron data utama di atas tetap berhasil. Cuma ditimpa kalau browser
+        // memang mengirim field 'pencairan' (browser versi lama nggak kirim -> data tersimpan aman).
+        let pencairanSaved = null;
+        if (data.pencairan && typeof data.pencairan === 'object') {
+            try {
+                const pStatements = [db.prepare('DELETE FROM pencairan')];
+                for (const key of Object.keys(data.pencairan)) {
+                    const p = data.pencairan[key];
+                    if (!p || typeof p.omset !== 'number') continue;
+                    pStatements.push(db.prepare('INSERT INTO pencairan (noPesanan, omset, tanggal) VALUES (?,?,?)')
+                        .bind(key, p.omset, p.date || ''));
+                }
+                await db.batch(pStatements);
+                pencairanSaved = true;
+            } catch (e) {
+                pencairanSaved = false;
+            }
+        }
+
+        return withCors(json({ success: true, ordersCount: Object.keys(data.orders || {}).length, pencairanSaved }));
     } catch (e) {
         return withCors(json({ error: 'Gagal menyimpan data: ' + e.message }, 500));
     }

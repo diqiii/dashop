@@ -914,6 +914,7 @@
         localStorage.setItem(LS_ORDERS, JSON.stringify(data.orders || {}));
         localStorage.setItem(LS_ADSPEND, JSON.stringify(data.adSpend || {}));
         localStorage.setItem(LS_UNCLASSIFIED, JSON.stringify(data.unclassified || {}));
+        localStorage.setItem(LS_PENCAIRAN, JSON.stringify(data.pencairan || {}));
         localStorage.setItem('hppCacheData', JSON.stringify(data.hppVersions || []));
         localStorage.setItem(LS_SKU_OVERRIDE, JSON.stringify(data.skuOverrides || {}));
         localStorage.setItem(LS_RETUR_CONFIRM, JSON.stringify(data.returConfirmations || {}));
@@ -925,6 +926,7 @@
             orders: loadPersistedOrders(),
             adSpend: loadPersistedAdSpend(),
             unclassified: loadPersistedUnclassified(),
+            pencairan: loadPersistedPencairan(),
             hppVersions: hppVersions,
             skuOverrides: loadSkuOverrides(),
             returConfirmations: returConfirmations
@@ -1197,6 +1199,7 @@
     const LS_SKU_OVERRIDE = 'rekapAdvDiqi_skuOverrideV1';
     const LS_RETUR_CONFIRM = 'rekapAdvDiqi_returConfirmV1';
     const LS_UPDATED = 'rekapAdvDiqi_lastUpdated';
+    const LS_PENCAIRAN = 'rekapAdvDiqi_pencairanV1';
 
     function loadPersistedOrders() {
         try { return JSON.parse(localStorage.getItem(LS_ORDERS)) || {}; } catch (e) { return {}; }
@@ -1206,6 +1209,12 @@
     }
     function loadPersistedUnclassified() {
         try { return JSON.parse(localStorage.getItem(LS_UNCLASSIFIED)) || {}; } catch (e) { return {}; }
+    }
+    // Pencairan per-order yang pernah diupload (kunci = No. Pesanan, isi = { omset, date }).
+    // Disimpan TERPISAH dari data pesanan, supaya file pencairan boleh diupload DULUAN sebelum
+    // file pesanannya ada — nanti otomatis nyambung begitu pesanannya diupload.
+    function loadPersistedPencairan() {
+        try { return JSON.parse(localStorage.getItem(LS_PENCAIRAN)) || {}; } catch (e) { return {}; }
     }
     function loadSkuOverrides() {
         try { return JSON.parse(localStorage.getItem(LS_SKU_OVERRIDE)) || {}; } catch (e) { return {}; }
@@ -1241,6 +1250,7 @@
         localStorage.removeItem(LS_ORDERS);
         localStorage.removeItem(LS_ADSPEND);
         localStorage.removeItem(LS_UNCLASSIFIED);
+        localStorage.removeItem(LS_PENCAIRAN);
         localStorage.removeItem(LS_UPDATED);
         allOrders = []; allAdSpendEntries = []; finalData = []; allUnclassifiedEntries = []; ordersTanpaStatus = []; returList = [];
         document.getElementById('dashArea').style.display = "none";
@@ -1571,18 +1581,19 @@
 
     // Cocokkan No. Pesanan ke data pencairan — termasuk fuzzy match 12 digit awal khusus TikTok
     // (beberapa ID TikTok di file pencairan suka kepotong/beda format dikit dari file pesanan).
-    function findSaldoMatch(noPesanan, masterSaldoMap) {
-        let saldoInfo = masterSaldoMap[noPesanan];
-        if (!saldoInfo && noPesanan.length >= 15) {
+    function findSaldoKey(noPesanan, masterSaldoMap) {
+        if (masterSaldoMap[noPesanan]) return noPesanan;
+        if (noPesanan.length >= 15) {
             let prefix = noPesanan.substring(0, 12);
             for (let k in masterSaldoMap) {
-                if (k.length >= 15 && k.startsWith(prefix)) {
-                    saldoInfo = masterSaldoMap[k];
-                    break;
-                }
+                if (k.length >= 15 && k.startsWith(prefix)) return k;
             }
         }
-        return saldoInfo;
+        return null;
+    }
+    function findSaldoMatch(noPesanan, masterSaldoMap) {
+        let k = findSaldoKey(noPesanan, masterSaldoMap);
+        return k === null ? undefined : masterSaldoMap[k];
     }
 
     async function prosesData() {
@@ -1602,6 +1613,15 @@
         try {
             const { orderMap: masterSaldoMap, adSpend, adSpendEntries, unclassified } = await getCombinedSaldo(fSaldoFiles);
             let newPesananMap = {};
+
+            // Simpan pencairan per-order ke penyimpanan permanen (yang baru menimpa yang lama).
+            // Dipakai juga untuk pesanan yang BARU diupload belakangan (lihat pencarian saldoInfo di bawah).
+            let persistedPencairan = loadPersistedPencairan();
+            for (let k in masterSaldoMap) {
+                if (masterSaldoMap[k] && masterSaldoMap[k].omset !== undefined) {
+                    persistedPencairan[k] = { omset: masterSaldoMap[k].omset, date: masterSaldoMap[k].date || "" };
+                }
+            }
 
             let totalRowsSeen = 0;
             let skippedRowsNoId = 0;
@@ -1693,7 +1713,8 @@
                         return;
                     }
 
-                    let saldoInfo = findSaldoMatch(noPesanan, masterSaldoMap) || {};
+                    // Cari pencairannya di semua pencairan yang pernah diupload (bukan cuma file kali ini)
+                    let saldoInfo = findSaldoMatch(noPesanan, persistedPencairan) || {};
 
                     let tanggalAsli = pClean["Waktu Pesanan Dibuat"] || pClean["Created Time"] || pClean["Waktu Dibuat"] || saldoInfo.date || "";
                     let ekspedisi = pClean["Opsi Pengiriman"] || pClean["Shipping Provider Name"] || pClean["Shipping Provider"] || pClean["Penyedia Pengiriman"] || "";
@@ -1729,6 +1750,9 @@
             let persistedOrders = loadPersistedOrders();
             let persistedAdSpend = loadPersistedAdSpend();
             let persistedUnclassified = loadPersistedUnclassified();
+            // Foto kondisi pencairan SEBELUM upload ini, untuk melaporkan apa yang benar-benar berubah
+            let omsetBefore = {};
+            for (let k in persistedOrders) omsetBefore[k] = persistedOrders[k].omset;
 
             for (let key in newPesananMap) {
                 let newOrder = newPesananMap[key];
@@ -1773,6 +1797,26 @@
                 }
             }
 
+            if (fSaldoFiles.length > 0) localStorage.setItem(LS_PENCAIRAN, JSON.stringify(persistedPencairan));
+
+            // Laporan pencairan yang jujur: berapa terbaca, berapa cocok, berapa benar-benar berubah
+            let pencairanTerbaca = Object.keys(masterSaldoMap).length;
+            let pencairanCocok = 0;
+            if (fSaldoFiles.length > 0) {
+                let matchedKeys = new Set();
+                for (let key in persistedOrders) {
+                    let sk = findSaldoKey(key, masterSaldoMap);
+                    if (sk !== null) matchedKeys.add(sk);
+                }
+                pencairanCocok = matchedKeys.size;
+            }
+            let pencairanBerubah = 0; // pesanan yang pencairannya baru terisi / berubah gara-gara upload ini
+            for (let key in persistedOrders) {
+                let after = persistedOrders[key].omset;
+                if (after === "" || after === undefined) continue;
+                if (!(key in omsetBefore) || omsetBefore[key] !== after) pencairanBerubah++;
+            }
+
             savePersisted(persistedOrders, persistedAdSpend, persistedUnclassified);
             allAdSpendEntries = Object.values(persistedAdSpend);
             allUnclassifiedEntries = Object.values(persistedUnclassified);
@@ -1783,7 +1827,15 @@
             let jumlahBaru = Object.keys(newPesananMap).length;
 
             let pesanText = jumlahBaru > 0 ? `${jumlahBaru} pesanan baru diproses dan digabung ke data tersimpan.` : `Tidak ada file pesanan baru diupload.`;
-            let pencairanText = pencairanUpdateCount > 0 ? ` ${pencairanUpdateCount} pesanan ter-update status pencairannya.` : (fSaldoFiles.length > 0 ? ` Tidak ada pesanan tersimpan yang cocok dengan file pencairan ini.` : '');
+            let pencairanText = '';
+            if (fSaldoFiles.length > 0) {
+                let menunggu = Math.max(pencairanTerbaca - pencairanCocok, 0);
+                pencairanText = ` Pencairan: ${pencairanTerbaca} order terbaca dari file, ${pencairanCocok} cocok dengan pesanan tersimpan — ${pencairanBerubah} pesanan ter-update/terisi pencairannya` +
+                    (pencairanCocok > 0 && pencairanBerubah < pencairanCocok ? `, sisanya sudah sama seperti sebelumnya` : '') + `.` +
+                    (menunggu > 0 ? ` ${menunggu} order lagi belum ada pesanannya — disimpan dulu, otomatis nyambung begitu file pesanannya diupload.` : '');
+            } else if (pencairanBerubah > 0) {
+                pencairanText = ` ${pencairanBerubah} pesanan langsung terisi pencairannya dari data pencairan yang sudah tersimpan sebelumnya.`;
+            }
             let auditText = skippedRowsNoId > 0 ? ` ⚠️ ${skippedRowsNoId} dari ${totalRowsSeen} baris di file pesanan DILEWATI karena tidak ada No. Pesanan (baris kosong/rusak) — cek file asli kalau ini nggak sesuai ekspektasi.` : (totalRowsSeen > 0 ? ` Semua ${totalRowsSeen} baris di file pesanan berhasil diidentifikasi (0 dilewati).` : '');
 
             showDashboardFromCurrentData(

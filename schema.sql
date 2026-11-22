@@ -66,3 +66,32 @@ CREATE TABLE IF NOT EXISTS pencairan (
 
 CREATE INDEX IF NOT EXISTS idx_orders_timestamp ON orders(timestamp);
 CREATE INDEX IF NOT EXISTS idx_adspend_timestamp ON adspend(timestamp);
+
+-- Performa kampanye iklan dari ekstensi (terpisah dari tabel adspend top-up saldo)
+CREATE TABLE IF NOT EXISTS ad_campaigns (
+    campaignId TEXT,
+    periodKey TEXT,         -- format: YYYY-MM-DD_YYYY-MM-DD (rentang tanggal laporan)
+    platform TEXT DEFAULT 'Shopee',
+    namaKampanye TEXT,
+    jenisIklan TEXT,
+    status TEXT,
+    itemId TEXT DEFAULT '',
+    sku TEXT DEFAULT '',
+    biaya REAL DEFAULT 0,
+    omzetIklan REAL DEFAULT 0,
+    roas REAL DEFAULT 0,
+    acos REAL DEFAULT 0,
+    impresi INTEGER DEFAULT 0,
+    klik INTEGER DEFAULT 0,
+    ctr REAL DEFAULT 0,
+    cpc REAL DEFAULT 0,
+    konversi INTEGER DEFAULT 0,
+    itemTerjual INTEGER DEFAULT 0,
+    dailyBudget REAL DEFAULT 0,
+    startTime INTEGER DEFAULT 0,
+    endTime INTEGER DEFAULT 0,
+    updatedAt INTEGER DEFAULT 0,
+    PRIMARY KEY (campaignId, periodKey)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ad_campaigns_period ON ad_campaigns(periodKey);

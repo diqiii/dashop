@@ -70,7 +70,14 @@ export async function onRequestGet({ request, env }) {
             for (const r of pRows.results) pencairan[r.noPesanan] = { omset: r.omset, date: r.tanggal || '' };
         } catch (e) { /* tabel pencairan belum ada */ }
 
-        return withCors(json({ orders, adSpend, unclassified, pencairan, hppVersions, skuOverrides, returConfirmations }));
+        // Performa kampanye iklan dari ekstensi (tabel 'ad_campaigns').
+        let adCampaigns = [];
+        try {
+            const cRows = await db.prepare('SELECT * FROM ad_campaigns ORDER BY updatedAt DESC').all();
+            adCampaigns = cRows.results || [];
+        } catch (e) { /* tabel ad_campaigns belum dibuat */ }
+
+        return withCors(json({ orders, adSpend, unclassified, pencairan, hppVersions, skuOverrides, returConfirmations, adCampaigns }));
     } catch (e) {
         return withCors(json({ error: 'Gagal mengambil data: ' + e.message }, 500));
     }
